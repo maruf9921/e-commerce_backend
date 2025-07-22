@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
 import { AdminService } from "./admin.service"; 
 
 
@@ -16,9 +16,18 @@ export class AdminController {
       return this.adminService.getAdminNameandId(name, id);
     }
 
+    
+
     @Post('addadmin')
     addAdmin(@Body() admindata: object): object {
       
       return this.adminService.addAdmin(admindata);
     }
+
+    @Delete('delete/:id')
+    deleteAdmin(@Param('id') id: number): object {
+      return this.adminService.deleteAdmin(id);
+    }
+
+
 }
