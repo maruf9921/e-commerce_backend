@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Put, Param, Post, Query, Patch } from "@nestjs/common";
 import { AdminService } from "./admin.service"; 
 
 
@@ -29,5 +29,20 @@ export class AdminController {
       return this.adminService.deleteAdmin(id);
     }
 
+    @Put('getadmin/:id')
+      updateAdmin(
+      @Param('id') id: number,
+      @Body() updateData: object
+    ): object {
+  return this.adminService.updateAdmin(id, updateData);
+    }
+
+    @Patch('getadmin/:id')
+    patchAdmin(
+      @Param('id') id: number,
+      @Body() updateData: object
+    ): object {
+      return this.adminService.updateAdmin(id, updateData); // You can create a separate patch method if needed
+    }
 
 }
