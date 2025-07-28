@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Put, Param, Post, Query, Patch } from "@nestjs/common";
 import { AdminService } from "./admin.service"; 
+import { AdminDto } from "./dto/admin.dto";
 
 
 @Controller('admin')
@@ -19,9 +20,9 @@ export class AdminController {
     
 
     @Post('addadmin')
-    addAdmin(@Body() admindata: object): object {
-      
-      return this.adminService.addAdmin(admindata);
+    addAdmin(@Body() AdminDto: AdminDto) {
+      console.log(AdminDto);
+      return this.adminService.addAdmin(AdminDto);
     }
 
     @Delete('delete/:id')
