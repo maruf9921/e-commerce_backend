@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, Put, Param, Post, Query, Patch } from "@nestjs/common";
+import { Body, Controller, UploadedFile, UseInterceptors, Delete, Get, Put, Param, Post, Query, Patch } from "@nestjs/common";
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
 import { AdminService } from "./admin.service"; 
 import { AdminDto } from "./dto/admin.dto";
 
@@ -19,11 +21,42 @@ export class AdminController {
 
     
 
+    // @Post('addadmin')
+    // addAdmin(@Body() AdminDto: AdminDto) {
+    //   console.log(AdminDto);
+    //   return this.adminService.addAdmin(AdminDto);
+    // }
+
     @Post('addadmin')
-    addAdmin(@Body() AdminDto: AdminDto) {
-      console.log(AdminDto);
-      return this.adminService.addAdmin(AdminDto);
-    }
+    @UseInterceptors(FileInterceptor('file', {
+    fileFilter: (req, file, cb) => {
+      if (file.originalname.match(/\.(jpg|jpeg|png|webp)$/)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed'), false);
+      }
+    },
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname);
+      }
+    })
+    }))
+  addAdmin(@Body() AdminDto: AdminDto, @UploadedFile() file: Express.Multer.File) {
+    console.log(AdminDto);
+    console.log(file);
+    return {
+      message: 'File uploaded successfully',
+      file: {
+        data: AdminDto,
+        originalName: file.originalname,
+        filename: file.filename,
+        size: file.size,
+      }
+    };
+  }
 
     @Delete('delete/:id')
     deleteAdmin(@Param('id') id: number): object {
