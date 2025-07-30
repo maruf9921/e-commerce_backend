@@ -1,15 +1,16 @@
 import { Injectable } from '@nestjs/common';
+import { SellerDto } from './dto/seller.dto';
 
 @Injectable()
 export class SellerService {
   private sellers = [
-    { id: 1, name: 'John' },
-    { id: 2, name: 'Jane' }
+    { id: 1, name: 'John', password: 'password123', phone: '01712345678' },
+    { id: 2, name: 'Jane', password: 'password456', phone: '01887654321' }
   ];
 
-  getSellerInfo(): string {
-    return 'Seller info';
-  }
+getSellerInfo(): string {
+  return 'Seller info';
+}
 
   getInfo(): object[] {
     return this.sellers;
@@ -19,15 +20,21 @@ export class SellerService {
     return this.sellers.find(s => s.id === id);
   }
 
-  addUser(user: { id: number; name: string }): object {
-    this.sellers.push(user);
-    return user;
+  addSeller(sellerDto: SellerDto): object {
+    const newSeller = {
+      id: Date.now(), // Generate a simple ID
+      ...sellerDto
+    };
+    this.sellers.push(newSeller);
+    return newSeller;
   }
 
-  updateUser(id: number, name: string): object | undefined {
+  updateUser(id: number, sellerDto: SellerDto): object | undefined {
     const seller = this.sellers.find(s => s.id === id);
     if (seller) {
-      seller.name = name;
+      seller.name = sellerDto.name;
+      seller.password = sellerDto.password;
+      seller.phone = sellerDto.phone;
     }
     return seller;
   }

@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UsePipes, ValidationPipe } from '@nestjs/common';
 import { SellerService } from "./seller.service";
+import { SellerDto } from './dto/seller.dto';
 
 @Controller('seller')
 export class SellerController {
@@ -21,13 +22,15 @@ export class SellerController {
   }
 
   @Post('add')
-  addUser(@Body() user: { id: number; name: string }): object {
-    return this.sellerService.addUser(user);
+  @UsePipes(ValidationPipe)
+  addUser(@Body() sellerDto: SellerDto): object {
+    return this.sellerService.addSeller(sellerDto);
   }
 
   @Put('update/:id')
-  updateUser(@Param('id') id: number, @Body('name') name: string): object | undefined {
-    return this.sellerService.updateUser(Number(id), name);
+  @UsePipes(ValidationPipe)
+  updateUser(@Param('id') id: number, @Body() sellerDto: SellerDto): object | undefined {
+    return this.sellerService.updateUser(Number(id), sellerDto);
   }
 
   @Delete('delete/:id')

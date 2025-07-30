@@ -1,99 +1,336 @@
+# E-Commerce Backend API
+
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+A robust e-commerce backend API built with NestJS framework, TypeScript, and advanced validation features. This project includes modules for Admin, Customer, and Seller management with comprehensive CRUD operations, file upload capabilities, and data validation using DTOs and Pipes.
 
-## Project setup
+## Features
 
-```bash
-$ npm install
+- **Multi-role Management**: Admin, Customer, and Seller modules
+- **Data Validation**: Custom DTOs with class-validator pipes
+- **File Upload**: PDF document upload with validation
+- **Type Safety**: Full TypeScript implementation
+- **Modular Architecture**: Clean separation of concerns
+- **Error Handling**: Comprehensive exception handling
+
+## Technologies Used
+
+- **Framework**: NestJS
+- **Language**: TypeScript
+- **Validation**: class-validator, class-transformer
+- **File Upload**: Multer
+- **Architecture**: Modular (Admin, Customer, Seller)
+
+## Project Structure
+
+```
+src/
+├── admin/           # Admin management module
+├── customer/        # Customer management module
+├── seller/          # Seller management with file upload
+│   ├── dto/         # Data Transfer Objects
+│   ├── Files/       # File upload services
+│   └── ...
+├── app.module.ts    # Root application module
+└── main.ts         # Application entry point
 ```
 
-## Compile and run the project
+## Installation and Setup
+
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
+
+### Install Dependencies
 
 ```bash
-# development
+# Install all dependencies
+$ npm install
+
+# Install validation packages
+$ npm install class-validator class-transformer
+
+# Install file upload packages
+$ npm install multer @types/multer
+```
+
+## Running the Application
+
+```bash
+# Development mode
 $ npm run start
 
-# watch mode
+# Watch mode (recommended for development)
 $ npm run start:dev
 
-# production mode
+# Production mode
 $ npm run start:prod
 ```
 
-## Run tests
+The application will start on `http://localhost:3000`
+
+## API Routes
+
+### Seller Routes
+
+#### GET Routes
+```bash
+# Get basic seller info
+GET http://localhost:3000/seller
+Response: "Seller info"
+
+# Get all sellers
+GET http://localhost:3000/seller/info
+Response: Array of seller objects
+
+# Get seller by ID
+GET http://localhost:3000/seller/info/:id
+Example: GET http://localhost:3000/seller/info/1
+```
+
+#### POST Routes
+```bash
+# Add new seller (with validation)
+POST http://localhost:3000/seller/add
+Content-Type: application/json
+{
+  "name": "John Doe",
+  "password": "password123",
+  "phone": "01712345678"
+}
+```
+
+#### PUT Routes
+```bash
+# Update seller (with validation)
+PUT http://localhost:3000/seller/update/:id
+Content-Type: application/json
+{
+  "name": "Updated Name",
+  "password": "newpassword123",
+  "phone": "01887654321"
+}
+```
+
+#### DELETE Routes
+```bash
+# Delete seller
+DELETE http://localhost:3000/seller/delete/:id
+Example: DELETE http://localhost:3000/seller/delete/1
+```
+
+### File Upload Routes
 
 ```bash
-# unit tests
+# Upload PDF file
+POST http://localhost:3000/files/upload
+Content-Type: multipart/form-data
+file: [PDF file]
+
+# Show file info by filename
+GET http://localhost:3000/files/show/:filename
+Example: GET http://localhost:3000/files/show/document.pdf
+
+# Download file
+GET http://localhost:3000/files/download/:filename
+Example: GET http://localhost:3000/files/download/document.pdf
+
+# Upload and show file info
+POST http://localhost:3000/files/upload-and-show
+Content-Type: multipart/form-data
+file: [PDF file]
+```
+
+## Data Validation
+
+### Seller DTO Validation Rules
+
+- **Name**: 
+  - Cannot be empty
+  - Only alphanumeric characters and spaces
+  - No special characters allowed
+
+- **Password**: 
+  - Minimum 6 characters
+  - Must contain at least one lowercase letter
+
+- **Phone**: 
+  - Must start with "01"
+  - Only digits allowed after "01"
+
+### File Upload Validation
+
+- **File Type**: Only PDF files allowed
+- **File Size**: Maximum 5MB
+- **MIME Type**: application/pdf
+- **File Extension**: .pdf only
+- **File Signature**: Validates PDF signature (%PDF)
+
+## Testing the API
+
+### Using cURL
+
+#### Test Seller Creation with Validation:
+```bash
+# Valid data
+curl -X POST http://localhost:3000/seller/add \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Alice Smith",
+    "password": "password123",
+    "phone": "01712345678"
+  }'
+
+# Invalid data (to test validation)
+curl -X POST http://localhost:3000/seller/add \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Alice@#$",
+    "password": "123",
+    "phone": "123456789"
+  }'
+```
+
+#### Test File Upload:
+```bash
+curl -X POST http://localhost:3000/files/upload \
+  -F "file=@/path/to/your/document.pdf"
+```
+
+### Using Postman
+
+1. **Seller Management**:
+   - Set method to POST/GET/PUT/DELETE
+   - URL: `http://localhost:3000/seller/[endpoint]`
+   - For POST/PUT: Set Body to "raw" JSON
+
+2. **File Upload**:
+   - Set method to POST
+   - URL: `http://localhost:3000/files/upload`
+   - Body type: form-data
+   - Add key "file" and select PDF file
+
+## Error Handling
+
+The API provides comprehensive error messages for validation failures:
+
+- **400 Bad Request**: Validation errors, invalid file format
+- **404 Not Found**: Seller or file not found
+- **500 Internal Server Error**: Server-side errors
+
+Example error response:
+```json
+{
+  "statusCode": 400,
+  "message": [
+    "Name must not contain any special characters!",
+    "Password must be at least 6 characters long!",
+    "Phone number field must start with 01!"
+  ],
+  "error": "Bad Request"
+}
+```
+
+## Development
+
+### Run Tests
+
+```bash
+# Unit tests
 $ npm run test
 
-# e2e tests
+# E2E tests
 $ npm run test:e2e
 
-# test coverage
+# Test coverage
 $ npm run test:cov
+```
+
+### Project Modules
+
+1. **Admin Module**: Administrative operations
+2. **Customer Module**: Customer management
+3. **Seller Module**: Seller management with validation and file upload
+4. **File Upload Module**: PDF file handling and validation
+
+### Key Components
+
+- **DTOs**: Data Transfer Objects with validation decorators
+- **Services**: Business logic implementation
+- **Controllers**: HTTP request handling
+- **Pipes**: Custom validation pipes
+- **Interceptors**: File upload interceptors
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+PORT=3000
+NODE_ENV=development
+UPLOAD_PATH=./uploads
+MAX_FILE_SIZE=5242880
 ```
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+When you're ready to deploy your e-commerce backend to production:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+1. **Build the project**:
 ```bash
-$ npm install -g mau
-$ mau deploy
+npm run build
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+2. **Set environment variables** for production
+3. **Configure file upload directory** permissions
+4. **Set up database** (if using one)
+5. **Deploy to your preferred platform**
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+For more information, check out the [NestJS deployment documentation](https://docs.nestjs.com/deployment).
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This project is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## Author
+
+**Dip Roy** - E-commerce Backend Developer
+
+## Support
+
+For questions and support:
+- Create an issue in this repository
+- Check NestJS [documentation](https://docs.nestjs.com)
+- Visit NestJS [Discord channel](https://discord.gg/G7Qnnhy)
+
+---
+
+### Quick Start Commands
+
+```bash
+# Clone and setup
+git clone [repository-url]
+cd e-commerce_backend
+npm install
+
+# Start development
+npm run start:dev
+
+# Test seller endpoint
+curl http://localhost:3000/seller/info
+
+# Test file upload
+curl -X POST http://localhost:3000/files/upload -F "file=@document.pdf"
+```
