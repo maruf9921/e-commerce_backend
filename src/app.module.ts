@@ -16,7 +16,7 @@ import { FileUploadModule } from './seller/Files/file-upload.module';
       database: 'e-commerce_backend',
       autoLoadEntities:true ,
       synchronize: true, // Set to false in production
-      logging: false, // Optional: to see SQL queries
+      logging: true, // Optional: to see SQL queries
     }),
     AdminModule,
     SellerModule,
