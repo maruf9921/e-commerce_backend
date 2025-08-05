@@ -21,9 +21,11 @@ A robust e-commerce backend API built with NestJS framework, TypeScript, and adv
 
 - **Framework**: NestJS
 - **Language**: TypeScript
+- **Database**: PostgreSQL with TypeORM
 - **Validation**: class-validator, class-transformer
 - **File Upload**: Multer
 - **Architecture**: Modular (Admin, Customer, Seller)
+- **ID Generation**: Custom @BeforeInsert hooks
 
 ## Project Structure
 
@@ -51,6 +53,10 @@ src/
 # Install all dependencies
 $ npm install
 
+# Install TypeORM and PostgreSQL packages
+$ npm install @nestjs/typeorm typeorm pg
+$ npm install @types/pg --save-dev
+
 # Install validation packages
 $ npm install class-validator class-transformer
 
@@ -71,56 +77,84 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
-The application will start on `http://localhost:3000`
+The application will start on `http://localhost:3030`
 
 ## API Routes
 
-### Seller Routes
+### Seller Routes (Base: `/sellers`)
 
-#### GET Routes
+#### Entity-Based Operations (Primary)
+```bash
+# Create seller with entity validation
+POST http://localhost:3030/sellers/create
+Content-Type: application/json
+{
+  "username": "john_seller",
+  "fullName": "John Doe Seller",
+  "name": "John",
+  "password": "password123",
+  "phone": "01712345678",
+  "isActive": true
+}
+
+# Search sellers by full name substring
+GET http://localhost:3030/sellers/search?fullName=John
+Example: GET http://localhost:3030/sellers/search?fullName=Smith
+
+# Get seller by unique username
+GET http://localhost:3030/sellers/username/:username
+Example: GET http://localhost:3030/sellers/username/john_seller
+
+# Remove seller by unique username
+DELETE http://localhost:3030/sellers/username/:username
+Example: DELETE http://localhost:3030/sellers/username/john_seller
+```
+
+#### Legacy Routes (Backward Compatibility)
 ```bash
 # Get basic seller info
-GET http://localhost:3000/seller
+GET http://localhost:3030/sellers
 Response: "Seller info"
 
-# Get all sellers
-GET http://localhost:3000/seller/info
-Response: Array of seller objects
+# Get all sellers from database
+GET http://localhost:3030/sellers/info
+Response: Array of seller entities
 
-# Get seller by ID
-GET http://localhost:3000/seller/info/:id
-Example: GET http://localhost:3000/seller/info/1
-```
+# Get seller by entity ID
+GET http://localhost:3030/sellers/info/:id
+Example: GET http://localhost:3030/sellers/info/SELLER_1722758400000_456
 
-#### POST Routes
-```bash
-# Add new seller (with validation)
-POST http://localhost:3000/seller/add
+# Add seller (legacy method with new validation)
+POST http://localhost:3030/sellers/add
 Content-Type: application/json
 {
-  "name": "John Doe",
-  "password": "password123",
-  "phone": "01712345678"
-}
-```
-
-#### PUT Routes
-```bash
-# Update seller (with validation)
-PUT http://localhost:3000/seller/update/:id
-Content-Type: application/json
-{
-  "name": "Updated Name",
-  "password": "newpassword123",
+  "username": "jane_seller",
+  "fullName": "Jane Smith",
+  "name": "Jane",
+  "password": "password456",
   "phone": "01887654321"
 }
-```
 
-#### DELETE Routes
-```bash
-# Delete seller
-DELETE http://localhost:3000/seller/delete/:id
-Example: DELETE http://localhost:3000/seller/delete/1
+# Update seller (full update)
+PUT http://localhost:3030/sellers/update/:id
+Content-Type: application/json
+{
+  "fullName": "Updated Name",
+  "password": "newpassword123",
+  "phone": "01987654321",
+  "isActive": false
+}
+
+# Partial update seller
+PATCH http://localhost:3030/sellers/update/:id
+Content-Type: application/json
+{
+  "isActive": true
+}
+
+# Delete seller by entity ID
+DELETE http://localhost:3030/sellers/delete/:id
+Example: DELETE http://localhost:3030/sellers/delete/SELLER_1722758400000_456
 ```
 
 ### File Upload Routes
@@ -149,8 +183,20 @@ file: [PDF file]
 
 ### Seller DTO Validation Rules
 
-- **Name**: 
-  - Cannot be empty
+- **Username**: 
+  - 3-100 characters long
+  - Only letters, numbers, and underscores
+  - Cannot be reserved names (admin, root, system, seller, test)
+  - Automatically normalized to lowercase
+
+- **Full Name**: 
+  - 2-150 characters long
+  - Only letters and spaces allowed
+  - Automatically capitalized (first letter of each word)
+  - Extra spaces removed
+
+- **Name** (Legacy): 
+  - Optional field for backward compatibility
   - Only alphanumeric characters and spaces
   - No special characters allowed
 
@@ -161,6 +207,10 @@ file: [PDF file]
 - **Phone**: 
   - Must start with "01"
   - Only digits allowed after "01"
+
+- **IsActive**: 
+  - Boolean field, defaults to false
+  - Controls seller account status
 
 ### File Upload Validation
 
@@ -174,25 +224,63 @@ file: [PDF file]
 
 ### Using cURL
 
-#### Test Seller Creation with Validation:
+#### Test Seller Creation with Entity Validation:
 ```bash
-# Valid data
-curl -X POST http://localhost:3000/seller/add \
+# Valid data - Create seller with entity
+curl -X POST http://localhost:3030/sellers/create \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Alice Smith",
+    "username": "alice_seller",
+    "fullName": "Alice Smith",
+    "name": "Alice",
     "password": "password123",
-    "phone": "01712345678"
+    "phone": "01712345678",
+    "isActive": true
   }'
 
+# Search sellers by name
+curl "http://localhost:3030/sellers/search?fullName=Alice"
+
+# Get seller by username
+curl http://localhost:3030/sellers/username/alice_seller
+
 # Invalid data (to test validation)
-curl -X POST http://localhost:3000/seller/add \
+curl -X POST http://localhost:3030/sellers/create \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Alice@#$",
+    "username": "al",
+    "fullName": "Alice@#$",
     "password": "123",
     "phone": "123456789"
   }'
+```
+
+#### Test Seller Updates:
+```bash
+# Full update
+curl -X PUT http://localhost:3030/sellers/update/SELLER_1722758400000_456 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "Alice Updated",
+    "password": "newpassword123",
+    "isActive": false
+  }'
+
+# Partial update
+curl -X PATCH http://localhost:3030/sellers/update/SELLER_1722758400000_456 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "isActive": true
+  }'
+```
+
+#### Test Seller Deletion:
+```bash
+# Delete by username (recommended)
+curl -X DELETE http://localhost:3030/sellers/username/alice_seller
+
+# Delete by ID (legacy)
+curl -X DELETE http://localhost:3030/sellers/delete/SELLER_1722758400000_456
 ```
 
 #### Test File Upload:
@@ -204,9 +292,20 @@ curl -X POST http://localhost:3000/files/upload \
 ### Using Postman
 
 1. **Seller Management**:
-   - Set method to POST/GET/PUT/DELETE
-   - URL: `http://localhost:3000/seller/[endpoint]`
-   - For POST/PUT: Set Body to "raw" JSON
+   - Set method to POST/GET/PUT/PATCH/DELETE
+   - URL: `http://localhost:3030/sellers/[endpoint]`
+   - For POST/PUT/PATCH: Set Body to "raw" JSON
+
+2. **Entity-Based Operations**:
+   - Create: `POST /sellers/create`
+   - Search: `GET /sellers/search?fullName=searchTerm`
+   - Get by username: `GET /sellers/username/username`
+   - Delete by username: `DELETE /sellers/username/username`
+
+3. **Legacy Operations**:
+   - Get all: `GET /sellers/info`
+   - Update: `PUT /sellers/update/:id`
+   - Partial update: `PATCH /sellers/update/:id`
 
 2. **File Upload**:
    - Set method to POST
@@ -227,13 +326,19 @@ Example error response:
 {
   "statusCode": 400,
   "message": [
-    "Name must not contain any special characters!",
+    "Username must be at least 3 characters long",
+    "Full name can only contain letters and spaces",
     "Password must be at least 6 characters long!",
     "Phone number field must start with 01!"
   ],
   "error": "Bad Request"
 }
 ```
+
+### Seller-Specific Errors
+- **409 Conflict**: Username already exists
+- **404 Not Found**: Seller with username/ID not found
+- **400 Bad Request**: Invalid entity data or reserved username
 
 ## Development
 
@@ -254,15 +359,21 @@ $ npm run test:cov
 
 1. **Admin Module**: Administrative operations
 2. **Customer Module**: Customer management
-3. **Seller Module**: Seller management with validation and file upload
+3. **Seller Module**: Complete seller management with:
+   - TypeORM entity with auto-generated IDs
+   - Custom validation pipes (username, fullName, search)
+   - Entity-based operations (create, search, get, delete by username)
+   - Legacy operations for backward compatibility
+   - PostgreSQL database integration
 4. **File Upload Module**: PDF file handling and validation
 
 ### Key Components
 
-- **DTOs**: Data Transfer Objects with validation decorators
-- **Services**: Business logic implementation
-- **Controllers**: HTTP request handling
-- **Pipes**: Custom validation pipes
+- **Entities**: TypeORM entities with @BeforeInsert hooks
+- **DTOs**: Data Transfer Objects with comprehensive validation decorators
+- **Services**: Business logic with TypeORM repository pattern
+- **Controllers**: RESTful HTTP request handling
+- **Pipes**: Custom validation pipes for data processing and security
 - **Interceptors**: File upload interceptors
 
 ## Contributing
@@ -278,8 +389,14 @@ $ npm run test:cov
 Create a `.env` file in the root directory:
 
 ```env
-PORT=3000
+PORT=3030
 NODE_ENV=development
+DB_TYPE=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=postgres
+DB_DATABASE=e-commerce_backend
 UPLOAD_PATH=./uploads
 MAX_FILE_SIZE=5242880
 ```
@@ -295,7 +412,7 @@ npm run build
 
 2. **Set environment variables** for production
 3. **Configure file upload directory** permissions
-4. **Set up database** (if using one)
+4. **Set up PostgreSQL database** and configure connection
 5. **Deploy to your preferred platform**
 
 For more information, check out the [NestJS deployment documentation](https://docs.nestjs.com/deployment).
@@ -325,12 +442,21 @@ git clone [repository-url]
 cd e-commerce_backend
 npm install
 
+# Setup PostgreSQL database
+createdb -U postgres e-commerce_backend
+
 # Start development
 npm run start:dev
 
-# Test seller endpoint
-curl http://localhost:3000/seller/info
+# Test seller endpoints
+curl http://localhost:3030/sellers
+curl http://localhost:3030/sellers/info
+
+# Test entity creation
+curl -X POST http://localhost:3030/sellers/create \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test_user","fullName":"Test User","password":"test123","phone":"01712345678"}'
 
 # Test file upload
-curl -X POST http://localhost:3000/files/upload -F "file=@document.pdf"
+curl -X POST http://localhost:3030/files/upload -F "file=@document.pdf"
 ```
