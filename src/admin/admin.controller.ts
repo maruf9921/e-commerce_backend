@@ -29,10 +29,23 @@ export class AdminController {
     return this.adminService.getInactiveAdmins();
   }
 
-  @Get('older-than-40')
-  getAdminsOlderThan40() {
-    return this.adminService.getAdminsOlderThan40();
-  }  
+  
+
+
+  @Get('older-than')
+getAdminsOlderThan(@Query('age', ParseIntPipe) age: number) {
+  return this.adminService.getAdminsOlderThan(age);
+}
+
+
+
+
+
+
+// @Get('older-than-40')
+  // getAdminsOlderThan40() {
+  //   return this.adminService.getAdminsOlderThan40();
+  // }  
 
     
   

@@ -1,4 +1,4 @@
-import { IsInt, IsString, MaxLength, Min } from 'class-validator';
+import { IsInt, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class AdminDto {
   @IsString()
@@ -7,5 +7,6 @@ export class AdminDto {
 
   @IsInt()
   @Min(0)
+  @Max(90)
   age: number;
 }

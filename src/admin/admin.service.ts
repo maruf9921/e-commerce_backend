@@ -29,11 +29,19 @@ export class AdminService {
     return this.adminRepo.find({ where: { status: 'inactive' } });
   }
 
-  getAdminsOlderThan40() {
-    return this.adminRepo.createQueryBuilder('admin')
-      .where('admin.age > :age', { age: 40 })
-      .getMany();
-  }
+  // getAdminsOlderThan40() {
+  //   return this.adminRepo.createQueryBuilder('admin')
+  //     .where('admin.age > :age', { age: 40 })
+  //     .getMany();
+  // }
+
+  getAdminsOlderThan(age: number) {
+  return this.adminRepo
+    .createQueryBuilder('admin')
+    .where('admin.age > :age', { age })
+    .getMany();
+}
+
 
 
   // // Example method
