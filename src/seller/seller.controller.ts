@@ -67,7 +67,7 @@ export class SellerController {
     return await this.sellerService.getInfoById(id);
   }
 
-  @Post('add')
+  @Post('add/v2')
   @UsePipes(ValidationPipe, SellerUsernameValidationPipe, SellerFullNameValidationPipe)
   async addSeller(@Body() sellerDto: SellerDto) {
     return await this.sellerService.addSeller(sellerDto);
@@ -101,5 +101,36 @@ export class SellerController {
   async searchSellers(@Param('substring') substring: string) {
     return await this.sellerService.getSellersByFullNameSubstring(substring);
   }
+
+  @Get('allid')
+  async getAllSellerIds() {
+    return await this.sellerService.getAllid();
+  }
+
+  @Get('allusernames')
+  async getAllUsernames() {
+    return await this.sellerService.getAllUsernames();
+  }
+
+  @Post('login')
+  @UsePipes(ValidationPipe, SellerUsernameValidationPipe)
+  async loginSeller(@Body('username') username: string, @Body('password') password: string) {
+    return await this.sellerService.loginSeller(username, password);
+  }
+
+
+  /*password → user login form থেকে আসা plain text password।
+
+    seller.password → database এ আগে stored hashed password।
+
+     bcrypt.compare() →
+
+     1.DB এর hashed password এর সাথে salt বের করে।
+
+     2.User এর input password একই salt দিয়ে hash করে।
+
+     3.দুইটা match করে কিনা চেক করে। */
+
+     
 
 }

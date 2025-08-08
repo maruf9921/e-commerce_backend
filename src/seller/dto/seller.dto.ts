@@ -1,4 +1,6 @@
 import { IsString, IsBoolean, IsOptional, MaxLength, MinLength, Matches, IsNotEmpty } from 'class-validator';
+//import { Hash } from 'crypto';
+
 
 export class SellerDto {
   @IsString()
@@ -28,8 +30,8 @@ export class SellerDto {
     
   // Password validation
   @IsNotEmpty()
-  @MinLength(6, {
-    message: 'Password must be at least 6 characters long!',
+  @MinLength(10, {
+    message: 'Password must be at least 10 characters long!',
   })
   @Matches(/[a-z]/, {
     message: 'Password must contain at least one lowercase letter!',
