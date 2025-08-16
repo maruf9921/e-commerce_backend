@@ -1,4 +1,6 @@
-import { Entity, PrimaryColumn, Column, BeforeInsert, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Product } from '../../product/entities/product.entity';
+import { Entity, PrimaryColumn, Column, BeforeInsert, BeforeUpdate, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 
 @Entity('sellers')
 export class Seller {
@@ -60,4 +62,11 @@ export class Seller {
     const prefix = 'SELLER';
     this.id = `${prefix}_${timestamp}_${randomNum}`;
   }
+
+  
+  @OneToMany(() => Product, (product) => product.seller, { 
+    cascade: true,
+    eager: false
+  })
+  products: Product[];
 }

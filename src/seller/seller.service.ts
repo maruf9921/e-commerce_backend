@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException, ConflictException,UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike ,Like} from 'typeorm';
+import { Repository, ILike, Like } from 'typeorm';
 import { Seller } from './entities/seller.entity';
 import { SellerDto } from './dto/seller.dto';
 import * as bcrypt from 'bcrypt';
+import { Product } from '../product/entities/product.entity';
+import { ProductDto } from 'src/product/dto/product.dto';
 
 @Injectable()
 export class SellerService {
@@ -12,6 +14,7 @@ export class SellerService {
   constructor(
     @InjectRepository(Seller)
     private sellerRepository: Repository<Seller>,
+    
   ) {}
 
   // Legacy method for backward compatibility

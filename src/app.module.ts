@@ -4,6 +4,7 @@ import { AdminModule } from './admin/admin.module';
 import { SellerModule } from './seller/seller.module';
 import { CustomerModule } from './customer/customer.module';
 import { FileUploadModule } from './seller/Files/file-upload.module';
+import { ProductModule } from './product/product.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { FileUploadModule } from './seller/Files/file-upload.module';
     SellerModule,
     CustomerModule,
     FileUploadModule,
+    ProductModule,
   ],
   controllers: [],
   providers: [],
