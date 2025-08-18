@@ -12,14 +12,13 @@ export class Admin {
   @Column()
   email: string;
 
-  @Column()
+  @Column({ nullable: false })
   age: number;
 
   @Column()
   password: string;
 
 
-  
   @Column({ default: 'admin' })
   role: string;
 
