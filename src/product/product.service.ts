@@ -183,4 +183,133 @@ export class ProductService {
             deletedProduct: product
         };
     }
+
+    // Many-to-One Relationship Methods
+    
+    // Get products by seller username
+    async getProductsBySellerUsername(username: string): Promise<Product[]> {
+        const seller = await this.sellerRepository.findOne({
+            where: { username }
+        });
+
+        if (!seller) {
+            throw new NotFoundException(`Seller with username '${username}' not found`);
+        }
+
+        return await this.productRepository.find({
+            where: { sellerId: seller.id },
+            relations: ['seller'],
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                price: true,
+                isActive: true,
+                imageUrl: true,
+                seller: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    phone: true,
+                    isActive: true
+                }
+            }
+        });
+    }
+
+    // Get only active products with seller details
+    async getActiveProductsWithSeller(): Promise<Product[]> {
+        return await this.productRepository.find({
+            where: { isActive: true },
+            relations: ['seller'],
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                price: true,
+                isActive: true,
+                imageUrl: true,
+                seller: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    phone: true,
+                    isActive: true
+                }
+            }
+        });
+    }
+
+    // Get product with full seller details
+    async getProductWithSellerDetails(productId: number): Promise<Product> {
+        const product = await this.productRepository.findOne({
+            where: { id: productId },
+            relations: ['seller'],
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                price: true,
+                isActive: true,
+                imageUrl: true,
+                sellerId: true,
+                seller: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    phone: true,
+                    isActive: true
+                }
+            }
+        });
+
+        if (!product) {
+            throw new NotFoundException(`Product with ID ${productId} not found`);
+        }
+
+        return product;
+    }
+
+    // Get products grouped by seller
+    async getProductsGroupedBySeller(): Promise<any[]> {
+        const results = await this.productRepository
+            .createQueryBuilder('product')
+            .leftJoinAndSelect('product.seller', 'seller')
+            .select([
+                'seller.id',
+                'seller.username', 
+                'seller.fullName',
+                'seller.phone',
+                'seller.isActive',
+                'COUNT(product.id) as productCount'
+            ])
+            .groupBy('seller.id, seller.username, seller.fullName, seller.phone, seller.isActive')
+            .getRawMany();
+
+        return results;
+    }
+
+    // Search products by seller name
+    async searchProductsBySellerName(sellerName: string): Promise<Product[]> {
+        return await this.productRepository
+            .createQueryBuilder('product')
+            .leftJoinAndSelect('product.seller', 'seller')
+            .where('seller.fullName ILIKE :name OR seller.username ILIKE :name', {
+                name: `%${sellerName}%`
+            })
+            .select([
+                'product.id',
+                'product.name',
+                'product.description',
+                'product.price',
+                'product.isActive',
+                'product.imageUrl',
+                'seller.id',
+                'seller.username',
+                'seller.fullName',
+                'seller.phone',
+                'seller.isActive'
+            ])
+            .getMany();
+    }
 }

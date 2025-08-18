@@ -5,6 +5,8 @@ import { SellerModule } from './seller/seller.module';
 import { CustomerModule } from './customer/customer.module';
 import { FileUploadModule } from './seller/Files/file-upload.module';
 import { ProductModule } from './product/product.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { ProductModule } from './product/product.module';
     CustomerModule,
     FileUploadModule,
     ProductModule,
+    UsersModule,
+    AuthModule,
   ],
   controllers: [],
   providers: [],

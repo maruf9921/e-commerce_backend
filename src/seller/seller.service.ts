@@ -14,7 +14,8 @@ export class SellerService {
   constructor(
     @InjectRepository(Seller)
     private sellerRepository: Repository<Seller>,
-    
+    @InjectRepository(Product)
+    private productRepository: Repository<Product>,
   ) {}
 
   // Legacy method for backward compatibility
@@ -236,5 +237,148 @@ async loginSeller(username: string, password: string): Promise<{ message: string
   };
 }
 
+  // One-to-Many Relationship Methods
+  
+  // Get seller with their products
+  async getSellerWithProducts(sellerId: string): Promise<Seller> {
+    const seller = await this.sellerRepository.findOne({
+      where: { id: sellerId },
+      relations: ['products'],
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        phone: true,
+        isActive: true,
+        products: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          isActive: true,
+          imageUrl: true
+        }
+      }
+    });
+
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    return seller;
+  }
+
+  // Get all sellers with their product count
+  async getAllSellersWithProductCount(): Promise<any[]> {
+    const sellersWithProductCount = await this.sellerRepository
+      .createQueryBuilder('seller')
+      .leftJoinAndSelect('seller.products', 'product')
+      .select([
+        'seller.id',
+        'seller.username',
+        'seller.fullName',
+        'seller.phone',
+        'seller.isActive',
+        'COUNT(product.id) as productCount'
+      ])
+      .groupBy('seller.id, seller.username, seller.fullName, seller.phone, seller.isActive')
+      .getRawMany();
+
+    return sellersWithProductCount;
+  }
+
+  // Get active products for a specific seller
+  async getActiveProductsBySeller(sellerId: string): Promise<Product[]> {
+    const seller = await this.sellerRepository.findOne({
+      where: { id: sellerId }
+    });
+
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    return await this.productRepository.find({
+      where: { 
+        sellerId: sellerId,
+        isActive: true 
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        isActive: true,
+        imageUrl: true
+      }
+    });
+  }
+
+  // Create product for a seller
+  async createProductForSeller(sellerId: string, productDto: ProductDto): Promise<Product> {
+    const seller = await this.sellerRepository.findOne({
+      where: { id: sellerId }
+    });
+
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    if (!seller.isActive) {
+      throw new UnauthorizedException('Only active sellers can create products');
+    }
+
+    const product = this.productRepository.create({
+      ...productDto,
+      sellerId: sellerId
+    });
+
+    return await this.productRepository.save(product);
+  }
+
+  // Get seller's product statistics
+  async getSellerProductStats(sellerId: string): Promise<any> {
+    const seller = await this.sellerRepository.findOne({
+      where: { id: sellerId }
+    });
+
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    const totalProducts = await this.productRepository.count({
+      where: { sellerId: sellerId }
+    });
+
+    const activeProducts = await this.productRepository.count({
+      where: { sellerId: sellerId, isActive: true }
+    });
+
+    const inactiveProducts = totalProducts - activeProducts;
+
+    return {
+      seller: {
+        id: seller.id,
+        username: seller.username,
+        fullName: seller.fullName
+      },
+      productStats: {
+        totalProducts,
+        activeProducts,
+        inactiveProducts
+      }
+    };
+  }
+
+  async getSellerById(sellerId: string): Promise<Seller> {
+    const seller = await this.sellerRepository.findOne({
+      where: { id: sellerId }
+    });
+
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    return seller;
+  }
 
 }

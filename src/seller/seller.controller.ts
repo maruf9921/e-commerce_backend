@@ -10,12 +10,17 @@ import {
   UsePipes,
   ValidationPipe,
   Patch,
+  UseGuards,
 } from '@nestjs/common';
 import { SellerService } from './seller.service';
 import { SellerDto } from './dto/seller.dto';
 import { SellerUsernameValidationPipe } from './pipes/seller-username-validation.pipe';
 import { SellerFullNameValidationPipe } from './pipes/seller-fullname-validation.pipe';
 import { SellerSearchValidationPipe } from './pipes/seller-search-validation.pipe';
+import { ProductDto } from '../product/dto/product.dto';
+import { Roles } from 'src/auth/roles.decorator/roles.decorator';
+import { Role } from '../users/entities/role.enum';
+import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 
 @Controller('sellers')
 export class SellerController {
@@ -28,6 +33,8 @@ export class SellerController {
   }
 
   // Create seller with entity and validation
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SELLER)
   @Post('create')
   @UsePipes(ValidationPipe, SellerUsernameValidationPipe, SellerFullNameValidationPipe)
   async createSeller(@Body() sellerDto: SellerDto) {
@@ -50,41 +57,37 @@ export class SellerController {
     return await this.sellerService.getSellerByUsername(username);
   }
 
-  // Remove seller by username
-  @Delete('username/:username')
-  async removeSellerByUsername(@Param('username', SellerUsernameValidationPipe) username: string,) {
-    return await this.sellerService.removeSellerByUsername(username);
+  // Get seller by ID
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN)
+  @Get('id/:id')
+  @UsePipes(ValidationPipe)
+  async getSellerById(@Param('id') id: string) {
+    return await this.sellerService.getSellerById(id);
   }
 
-  // Legacy routes for backward compatibility
-  @Get('info')
-  async getInfo() {
-    return await this.sellerService.getInfo();
-  }
-
-  @Get('info/:id')
-  async getInfoById(@Param('id') id: string) {
-    return await this.sellerService.getInfoById(id);
-  }
-
-  @Post('add/v2')
+  // Add seller (alternative create endpoint)
+  @Post('add')
   @UsePipes(ValidationPipe, SellerUsernameValidationPipe, SellerFullNameValidationPipe)
   async addSeller(@Body() sellerDto: SellerDto) {
     return await this.sellerService.addSeller(sellerDto);
   }
-
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN)
   @Put('update/:id')
   @UsePipes(ValidationPipe, SellerFullNameValidationPipe)
   async updateUser(@Param('id') id: string, @Body() sellerDto: SellerDto) {
     return await this.sellerService.updateUser(id, sellerDto);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SELLER)
   @Delete('delete/:id')
   async deleteUser(@Param('id') id: string) {
     return await this.sellerService.deleteUser(id);
-  }
-
-
+}
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SELLER)
   @Patch('update/:id')
   @UsePipes(ValidationPipe, SellerFullNameValidationPipe)
   async updatePartialUser(@Param('id') id: string, @Body() sellerDto: Partial<SellerDto>) {
@@ -112,25 +115,60 @@ export class SellerController {
     return await this.sellerService.getAllUsernames();
   }
 
+  // Seller login - redirects to main auth system
   @Post('login')
-  @UsePipes(ValidationPipe, SellerUsernameValidationPipe)
-  async loginSeller(@Body('username') username: string, @Body('password') password: string) {
-    return await this.sellerService.loginSeller(username, password);
+  @UsePipes(ValidationPipe)
+  async loginSeller(@Body() loginDto: { username: string; password: string }) {
+    // For sellers, use the main auth system instead
+    return {
+      message: 'Use /auth/login for seller authentication',
+      redirectUrl: '/auth/login',
+      note: 'All users (including sellers) login through the main auth system',
+      example: {
+        url: 'POST /auth/login',
+        body: {
+          username: loginDto.username,
+          password: '****'
+        }
+      }
+    };
   }
 
+  // One-to-Many Relationship Endpoints
 
-  /*password → user login form থেকে আসা plain text password।
+  // Get seller with their products
+  @Get(':id/products')
+  async getSellerWithProducts(@Param('id') sellerId: string) {
+    return await this.sellerService.getSellerWithProducts(sellerId);
+  }
 
-    seller.password → database এ আগে stored hashed password।
+  // Get all sellers with product count
+  @Get('stats/product-counts')
+  async getAllSellersWithProductCount() {
+    return await this.sellerService.getAllSellersWithProductCount();
+  }
 
-     bcrypt.compare() →
+  // Get active products for a seller
+  @Get(':id/products/active')
+  async getActiveProductsBySeller(@Param('id') sellerId: string) {
+    return await this.sellerService.getActiveProductsBySeller(sellerId);
+  }
 
-     1.DB এর hashed password এর সাথে salt বের করে।
+  // Create product for a seller (Protected - Sellers only)
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.SELLER)
+  @Post(':id/products')
+  @UsePipes(ValidationPipe)
+  async createProductForSeller(
+    @Param('id') sellerId: string,
+    @Body() productDto: ProductDto
+  ) {
+    return await this.sellerService.createProductForSeller(sellerId, productDto);
+  }
 
-     2.User এর input password একই salt দিয়ে hash করে।
-
-     3.দুইটা match করে কিনা চেক করে। */
-
-     
-
+  // Get seller's product statistics
+  @Get(':id/stats')
+  async getSellerProductStats(@Param('id') sellerId: string) {
+    return await this.sellerService.getSellerProductStats(sellerId);
+  }
 }
