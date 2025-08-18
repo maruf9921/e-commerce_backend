@@ -15,6 +15,11 @@ export class Admin {
   @Column()
   age: number;
 
+  @Column()
+  password: string;
+
+
+  
   @Column({ default: 'admin' })
   role: string;
 
