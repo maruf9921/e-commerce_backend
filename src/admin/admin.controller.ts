@@ -1,122 +1,64 @@
-import { Body, Controller, UploadedFile, UseInterceptors, ParseIntPipe, Delete, Get, Put, Param, Post, Query, Patch } from "@nestjs/common";
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { AdminService } from "./admin.service"; 
-import { AdminDto } from "./dto/admin.dto";
+import { 
+  Controller, Get, Post, Put, Patch, Delete, Param, Body, Query, ParseIntPipe, 
+  UsePipes, ValidationPipe 
+} from '@nestjs/common';
+import { AdminService } from './admin.service';
+import { AdminDto } from './dto/admin.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
-
+import { UpdateEmailDto } from './dto/update-email.dto';
+import { StatusValidationPipe } from './pipes/status-validation.pipe';
 
 @Controller('admin')
 export class AdminController {
-    constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) {}
 
+  @Get()
+  getAll() {
+    return this.adminService.findAll();
+  }
+
+  @Get(':id')
+  getById(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.findOne(id);
+  }
 
   @Post()
+  @UsePipes(new ValidationPipe({ transform: true }))
   create(@Body() dto: AdminDto) {
-    return this.adminService.createAdmin(dto);
+    return this.adminService.create(dto);
+  }
+
+  @Put(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: AdminDto) {
+    return this.adminService.update(id, dto);
   }
 
   @Patch(':id/status')
   updateStatus(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateStatusDto,
+    @Param('id', ParseIntPipe) id: number, 
+    @Body(StatusValidationPipe) dto: UpdateStatusDto
   ) {
-    return this.adminService.updateStatus(id, dto);
+    return this.adminService.updateStatus(id, dto.status);
   }
 
-  @Get('inactive')
-  getInactiveAdmins() {
-    return this.adminService.getInactiveAdmins();
+  @Patch(':id/email')
+  updateEmail(
+    @Param('id', ParseIntPipe) id: number, 
+    @Body() dto: UpdateEmailDto
+  ) {
+    return this.adminService.updateEmail(id, dto.email);
   }
 
-  
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.remove(id);
+  }
 
-
-  @Get('older-than')
-getAdminsOlderThan(@Query('age', ParseIntPipe) age: number) {
-  return this.adminService.getAdminsOlderThan(age);
-}
-
-
-
-
-
-
-// @Get('older-than-40')
-  // getAdminsOlderThan40() {
-  //   return this.adminService.getAdminsOlderThan40();
-  // }  
-
-    
-  
-  //   @Get()
-  //   getAdminInfo(): string {
-  //     return this.adminService.getAdminInfo();
-  //   }
-
-  //   @Get('getadmin')
-  //   getAdminNameandId(@Query('name') name:string, @Query('id') id:number): object  {
-  //     return this.adminService.getAdminNameandId(name, id);
-  //   }
-
-    
-
-  //   // @Post('addadmin')
-  //   // addAdmin(@Body() AdminDto: AdminDto) {
-  //   //   console.log(AdminDto);
-  //   //   return this.adminService.addAdmin(AdminDto);
-  //   // }
-
-  //   @Post('addadmin')
-  //   @UseInterceptors(FileInterceptor('file', {
-  //   fileFilter: (req, file, cb) => {
-  //     if (file.originalname.match(/\.(jpg|jpeg|png|webp)$/)) {
-  //       cb(null, true);
-  //     } else {
-  //       cb(new Error('Only image files are allowed'), false);
-  //     }
-  //   },
-  //   limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
-  //   storage: diskStorage({
-  //     destination: './uploads',
-  //     filename: (req, file, cb) => {
-  //       cb(null, Date.now() + '-' + file.originalname);
-  //     }
-  //   })
-  //   }))
-  // addAdmin(@Body() AdminDto: AdminDto, @UploadedFile() file: Express.Multer.File) {
-  //   console.log(AdminDto);
-  //   console.log(file);
-  //   return {
-  //     message: 'File uploaded successfully',
-  //     file: {
-  //       data: AdminDto,
-  //       originalName: file.originalname,
-  //       filename: file.filename,
-  //       size: file.size,
-  //     }
-  //   };
-  // }
-
-  //   @Delete('delete/:id')
-  //   deleteAdmin(@Param('id') id: number): object {
-  //     return this.adminService.deleteAdmin(id);
-  //   }
-
-  //   @Put('getadmin/:id')
-  //     updateAdmin(
-  //     @Param('id') id: number,
-  //     @Body() updateData: object
-  //   ): object {
-  // return this.adminService.updateAdmin(id, updateData);
-  //   }
-
-  //   @Patch('getadmin/:id')
-  //   patchAdmin(
-  //     @Param('id') id: number,
-  //     @Body() updateData: object
-  //   ): object {
-  //     return this.adminService.updateAdmin(id, updateData); // You can create a separate patch method if needed
-  //   }
-
+  @Get('search/age')
+  searchByAge(
+    @Query('min', ParseIntPipe) min: number, 
+    @Query('max', ParseIntPipe) max: number
+  ) {
+    return this.adminService.findByAgeRange(min, max);
+  }
 }

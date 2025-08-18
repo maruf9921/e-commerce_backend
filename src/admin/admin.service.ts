@@ -1,76 +1,57 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Admin } from './admin.entity';
 import { AdminDto } from './dto/admin.dto';
-import { UpdateStatusDto } from './dto/update-status.dto';
-
 
 @Injectable()
 export class AdminService {
-
-  
   constructor(
-    @InjectRepository(Admin)
-    private adminRepo: Repository<Admin>,
+    @InjectRepository(Admin) private repo: Repository<Admin>,
   ) {}
 
-  createAdmin(dto: AdminDto) {
-    const admin = this.adminRepo.create(dto);
-    return this.adminRepo.save(admin);
+  async findAll() {
+    return this.repo.find();
   }
 
-  async updateStatus(id: number, dto: UpdateStatusDto) {
-    await this.adminRepo.update(id, { status: dto.status });
-    return this.adminRepo.findOneBy({ id });
+  async findOne(id: number) {
+    const admin = await this.repo.findOne({ where: { id } });
+    if (!admin) throw new NotFoundException(`Admin ${id} not found`);
+    return admin;
   }
 
-  getInactiveAdmins() {
-    return this.adminRepo.find({ where: { status: 'inactive' } });
+  async create(dto: AdminDto) {
+    const admin = this.repo.create(dto);
+    return this.repo.save(admin);
   }
 
-  // getAdminsOlderThan40() {
-  //   return this.adminRepo.createQueryBuilder('admin')
-  //     .where('admin.age > :age', { age: 40 })
-  //     .getMany();
-  // }
+  async update(id: number, dto: AdminDto) {
+    await this.findOne(id);
+    await this.repo.update(id, dto);
+    return this.findOne(id);
+  }
 
-  getAdminsOlderThan(age: number) {
-  return this.adminRepo
-    .createQueryBuilder('admin')
-    .where('admin.age > :age', { age })
-    .getMany();
-}
+  async updateStatus(id: number, status: 'active' | 'inactive') {
+    await this.findOne(id);
+    await this.repo.update(id, { status });
+    return this.findOne(id);
+  }
 
+  async updateEmail(id: number, email: string) {
+    await this.findOne(id);
+    await this.repo.update(id, { email });
+    return this.findOne(id);
+  }
 
+  async remove(id: number) {
+    const admin = await this.findOne(id);
+    return this.repo.remove(admin);
+  }
 
-  // // Example method
-  //   getAdminInfo(): string {
-  //   return 'This will return admin information';
-  //   }
-
-  //   getAdminNameandId(name: string, id: number): object {
-  //       return { name:name, id:id };
-  //   }
-
-    
-  //   addAdmin(admindata: object): object {
-  //       return admindata; 
-  //   }
-
-  //   deleteAdmin(id: number): object {
-  // // delete the admin user by id
-  // return { message: `Admin with id ${id} deleted.` };
-  //   }
-
-  //   updateAdmin(id: number, updateData: any): object {
-    
-  //   return { message: `Admin with id ${id} updated.` };
-  // }
-
-  // patchAdmin(id: number, updateData: any): object {
-    
-  //   return { message: `Admin with id ${id} patched.` };
-  // }
-
+  async findByAgeRange(min: number, max: number) {
+    return this.repo
+      .createQueryBuilder('admin')
+      .where('admin.age BETWEEN :min AND :max', { min, max })
+      .getMany();
+  }
 }

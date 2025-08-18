@@ -1,16 +1,28 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Product } from '../product/product.entity';
 
-@Entity('admins')
+@Entity()
 export class Admin {
-  @PrimaryGeneratedColumn({ unsigned: true })
+  @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 100 })
-  fullName: string;
+  @Column()
+  name: string;
 
-  @Column({ type: 'int', unsigned: true })
+  @Column()
+  email: string;
+
+  @Column()
   age: number;
 
-  @Column({ type: 'enum', enum: ['active', 'inactive'], default: 'active' })
-  status: 'active' | 'inactive';
+  @Column({ default: 'admin' })
+  role: string;
+
+  @Column({ default: 'active' })
+  status: string;
+
+
+  // One admin can have many products
+  @OneToMany(() => Product, (product) => product.admin)
+  products: Product[];
 }

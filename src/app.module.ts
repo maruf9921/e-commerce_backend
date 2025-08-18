@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module';
 import { SellerModule } from './seller/seller.module';
+import { ProductModule } from './product/product.module';
 import { CustomerModule } from './customer/customer.module';
 
 @Module({
-  imports: [AdminModule, SellerModule, CustomerModule, TypeOrmModule.forRoot({
+  imports: [AdminModule, SellerModule, ProductModule, CustomerModule, TypeOrmModule.forRoot({
   type: 'postgres',
   host: 'localhost',
   port: 5432,
