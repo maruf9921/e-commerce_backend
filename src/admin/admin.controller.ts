@@ -1,6 +1,6 @@
 import { 
   Controller, Get, Post, Put, Patch, Delete, Param, Body, Query, ParseIntPipe, 
-  UsePipes, ValidationPipe 
+  UsePipes, ValidationPipe, NotFoundException 
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminDto } from './dto/admin.dto';
@@ -18,9 +18,14 @@ export class AdminController {
   }
 
   @Get(':id')
-  getById(@Param('id', ParseIntPipe) id: number) {
-    return this.adminService.findOne(id);
+  async getById(@Param('id', ParseIntPipe) id: number) {
+    const admin = await this.adminService.findOne(id);
+    if (!admin) {
+      throw new NotFoundException(`Admin with ID ${id} not found`);
+    }
+    return admin;
   }
+
 
   @Post()
   @UsePipes(new ValidationPipe({ transform: true }))
