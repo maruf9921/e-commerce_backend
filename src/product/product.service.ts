@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './product.entity';
@@ -15,6 +15,10 @@ export class ProductService {
   async createProduct(adminId: number, productData: Partial<Product>) {
     const admin = await this.adminRepo.findOne({ where: { id: adminId } });
     if (!admin) throw new NotFoundException('Admin not found');
+
+    if (productData.price <= 0) {
+    throw new BadRequestException('Price must be greater than 0');
+  }
 
     const product = this.productRepo.create({ ...productData, admin });
     return this.productRepo.save(product);

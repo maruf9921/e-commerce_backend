@@ -27,11 +27,11 @@ export class AdminController {
   }
 
 
-  @Post()
-  @UsePipes(new ValidationPipe({ transform: true }))
-  create(@Body() dto: AdminDto) {
-    return this.adminService.create(dto);
-  }
+  // @Post()
+  // @UsePipes(new ValidationPipe({ transform: true }))
+  // create(@Body() dto: AdminDto) {
+  //   return this.adminService.create(dto);
+  // }
 
   @Put(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: AdminDto) {

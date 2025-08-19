@@ -32,17 +32,17 @@ export class AuthService {
   async login(email: string, password: string) {
     const admin = await this.adminRepo.findOne({ where: { email } });
     if (!admin) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Invalid password');
     }
 
     const payload = { id: admin.id, email: admin.email };
     const token = await this.jwtService.signAsync(payload);
 
-    return { access_token: token };
+    return this.jwtService.sign({ id: admin.id, email: admin.email });
   }
 }

@@ -20,10 +20,10 @@ export class AdminService {
     return admin;
   }
 
-  async create(dto: AdminDto) {
-    const admin = this.repo.create(dto);
-    return this.repo.save(admin);
-  }
+  // async create(dto: AdminDto) {
+  //   const admin = this.repo.create(dto);
+  //   return this.repo.save(admin);
+  // }
 
   async update(id: number, dto: AdminDto) {
     await this.findOne(id);
