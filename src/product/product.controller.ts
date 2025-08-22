@@ -90,18 +90,24 @@ export class ProductController {
     // Many-to-One Relationship Endpoints
 
     // Get products by seller username
+    @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SELLER)
     @Get('seller/username/:username')
     async getProductsBySellerUsername(@Param('username') username: string): Promise<Product[]> {
         return this.productService.getProductsBySellerUsername(username);
     }
 
     // Get only active products with seller details
+    @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SELLER)
     @Get('active/with-seller')
     async getActiveProductsWithSeller(): Promise<Product[]> {
         return this.productService.getActiveProductsWithSeller();
     }
 
     // Get product with full seller details
+    @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SELLER)
     @Get(':id/with-seller')
     async getProductWithSellerDetails(@Param('id', ParseIntPipe) productId: number): Promise<Product> {
         return this.productService.getProductWithSellerDetails(productId);
@@ -114,6 +120,8 @@ export class ProductController {
     }
 
     // Search products by seller name
+    @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SELLER)
     @Get('search/by-seller')
     async searchProductsBySellerName(@Query('sellerName') sellerName: string): Promise<Product[]> {
         return this.productService.searchProductsBySellerName(sellerName);

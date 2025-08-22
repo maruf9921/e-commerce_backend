@@ -7,6 +7,12 @@ import { FileUploadModule } from './seller/Files/file-upload.module';
 import { ProductModule } from './product/product.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { MaillerModule } from './mailler/mailler.module';
+import { MaillerService } from './mailler/mailler.service';
+import { MaillerController } from './mailler/mailler.controller';
+import { Product } from './product/entities/product.entity';
+import { User } from './users/entities/unified-user.entity';
+//import { ForeignKeyTestModule } from './test/foreign-key-test.module';
 
 @Module({
   imports: [
@@ -16,9 +22,9 @@ import { AuthModule } from './auth/auth.module';
       port: 5432,
       username: 'postgres',
       password: 'postgres',
-      database: 'e-commerce_backend',
-      autoLoadEntities:true ,
-      synchronize: true, // Set to false in production
+      database: 'e_commerce',
+      entities: [User, Product],
+      synchronize: false, // Set to false when using migrations
       logging: true, // Optional: to see SQL queries
     }),
     AdminModule,
@@ -28,8 +34,10 @@ import { AuthModule } from './auth/auth.module';
     ProductModule,
     UsersModule,
     AuthModule,
+    MaillerModule,
+    
   ],
-  controllers: [],
-  providers: [],
+  controllers: [MaillerController],
+  providers: [MaillerService],
 })
 export class AppModule {}

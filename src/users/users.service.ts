@@ -1,26 +1,30 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { TotalUsers } from './entities/totalUsers.entity';
+// Update the import to match the actual exported member from unified-user.entity.ts
+import { User } from './entities/unified-user.entity';
 import { Role } from './entities/role.enum';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
+import { Product } from 'src/product/entities/product.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(TotalUsers) 
-    private userRepository: Repository<TotalUsers>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>
   ) {}
 
-  async getAllUsers(): Promise<Partial<TotalUsers>[]> {
+  async getAllUsers(): Promise<Partial<User>[]> {
     const users = await this.userRepository.find({
       select: ['id', 'username', 'email', 'phone', 'role', 'isActive', 'createdAt', 'updatedAt']
     });
     return users;
   }
 
-  async getUserById(id: number): Promise<Partial<TotalUsers>> {
+  async getUserById(id: number): Promise<Partial<User>> {
     const user = await this.userRepository.findOne({
       where: { id },
       select: ['id', 'username', 'email', 'phone', 'role', 'isActive', 'createdAt', 'updatedAt']
@@ -33,7 +37,7 @@ export class UsersService {
     return user;
   }
 
-  async getUserByUsername(username: string): Promise<Partial<TotalUsers>> {
+  async getUserByUsername(username: string): Promise<Partial<User>> {
     const user = await this.userRepository.findOne({
       where: { username },
       select: ['id', 'username', 'email', 'phone', 'role', 'isActive', 'createdAt', 'updatedAt']
@@ -46,7 +50,7 @@ export class UsersService {
     return user;
   }
 
-  async createUser(createUserDto: CreateUserDto): Promise<Partial<TotalUsers>> {
+  async createUser(createUserDto: CreateUserDto): Promise<Partial<User>> {
     const { username, email, password, phone, role = Role.USER } = createUserDto;
 
     // Check if username exists
@@ -78,7 +82,7 @@ export class UsersService {
     return result;
   }
 
-  async updateUser(id: number, updateUserDto: UpdateUserDto): Promise<Partial<TotalUsers>> {
+  async updateUser(id: number, updateUserDto: UpdateUserDto): Promise<Partial<User>> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -120,7 +124,7 @@ export class UsersService {
     return { message: `User '${user.username}' has been successfully deleted` };
   }
 
-  async getUsersByRole(role: Role): Promise<Partial<TotalUsers>[]> {
+  async getUsersByRole(role: Role): Promise<Partial<User>[]> {
     const users = await this.userRepository.find({
       where: { role },
       select: ['id', 'username', 'email', 'phone', 'role', 'isActive', 'createdAt', 'updatedAt']
@@ -128,7 +132,7 @@ export class UsersService {
     return users;
   }
 
-  async getActiveUsers(): Promise<Partial<TotalUsers>[]> {
+  async getActiveUsers(): Promise<Partial<User>[]> {
     const users = await this.userRepository.find({
       where: { isActive: true },
       select: ['id', 'username', 'email', 'phone', 'role', 'isActive', 'createdAt', 'updatedAt']
@@ -136,7 +140,7 @@ export class UsersService {
     return users;
   }
 
-  async toggleUserStatus(id: number): Promise<Partial<TotalUsers>> {
+  async toggleUserStatus(id: number): Promise<Partial<User>> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);

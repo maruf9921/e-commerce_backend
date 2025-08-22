@@ -1,5 +1,5 @@
 
-import { Seller } from '../../seller/entities/seller.entity';
+import { User } from '../../users/entities/unified-user.entity';
 import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 
 
@@ -29,15 +29,17 @@ export class Product {
     @UpdateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     updatedAt: Date;
 
-    //sellerId is now properly NOT NULL
-    @Column({ name: 'sellerId', nullable: false })
-    sellerId: string;
+    // Use userId as foreign key for seller
+    @Column({ type: 'int', name: 'userId', nullable: false })
+    userId: number;
 
-    //MANY-TO-ONE: Many products belong to one seller
-    @ManyToOne(() => Seller, (seller) => seller.products, {
+    //MANY-TO-ONE: Many products belong to one user (seller)
+    @ManyToOne(() => User, (user) => user.products, {
         nullable: false,
-        onDelete: 'CASCADE'
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        eager: true
     })
-    @JoinColumn({ name: 'sellerId' })
-    seller: Seller;
+    @JoinColumn({ name: 'userId', referencedColumnName: 'id' })
+    seller: User;
 }

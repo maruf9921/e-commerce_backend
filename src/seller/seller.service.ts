@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike, Like } from 'typeorm';
-import { Seller } from './entities/seller.entity';
+import { User } from '../users/entities/unified-user.entity';
+import { Role } from '../users/entities/role.enum';
 import { SellerDto } from './dto/seller.dto';
 import * as bcrypt from 'bcrypt';
 import { Product } from '../product/entities/product.entity';
@@ -12,8 +13,8 @@ export class SellerService {
   private readonly saltRounds = 8;
 
   constructor(
-    @InjectRepository(Seller)
-    private sellerRepository: Repository<Seller>,
+  @InjectRepository(User)
+  private userRepository: Repository<User>,
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
   ) {}
@@ -24,9 +25,9 @@ export class SellerService {
   }
 
   // Create seller with entity
-  async createSeller(sellerDto: SellerDto): Promise<Seller> {
+  async createSeller(sellerDto: SellerDto): Promise<User> {
     // Check if username already exists
-    const existingUser = await this.sellerRepository.findOne({
+    const existingUser = await this.userRepository.findOne({
       where: { username: sellerDto.username }
     });
 
@@ -36,24 +37,25 @@ export class SellerService {
 
     const salt = await bcrypt.genSalt(8);
     const hashedPassword = await bcrypt.hash(sellerDto.password, salt);
-    //console.log('Hashed Password:', hashedPassword);
 
-    const seller = this.sellerRepository.create({
+    const seller = this.userRepository.create({
       username: sellerDto.username,
       fullName: sellerDto.fullName,
       password: hashedPassword,
       phone: sellerDto.phone,
-      isActive: sellerDto.isActive || false,
+      isActive: true, // Default to active for new sellers
+      role: Role.SELLER
     });
 
-    return await this.sellerRepository.save(seller);
+    return await this.userRepository.save(seller);
   }
 
   // Search sellers by full name substring
-  async getSellersByFullNameSubstring(substring: string): Promise<Seller[]> {
-    return await this.sellerRepository.find({
+  async getSellersByFullNameSubstring(substring: string): Promise<User[]> {
+    return await this.userRepository.find({
       where: {
-        fullName: Like(`%${substring}%`)
+        fullName: Like(`%${substring}%`),
+        role: Role.SELLER
       },
       order: {
         fullName: 'ASC'
@@ -62,9 +64,9 @@ export class SellerService {
   }
 
   // Get seller by username
-  async getSellerByUsername(username: string): Promise<Seller> {
-    const seller = await this.sellerRepository.findOne({
-      where: { username } // Use username directly for lookup
+  async getSellerByUsername(username: string): Promise<User> {
+    const seller = await this.userRepository.findOne({
+      where: { username, role: Role.SELLER }
     });
 
     if (!seller) {
@@ -75,10 +77,10 @@ export class SellerService {
   }
 
   // Remove seller by username
-  async removeSellerByUsername(username: string): Promise<{ message: string; deletedSeller: Seller }> {
+  async removeSellerByUsername(username: string): Promise<{ message: string; deletedSeller: User }> {
     const seller = await this.getSellerByUsername(username);
     
-    await this.sellerRepository.remove(seller);
+    await this.userRepository.remove(seller);
     
     return {
       message: `Seller with username '${username}' has been successfully deleted`,
@@ -87,8 +89,9 @@ export class SellerService {
   }
 
   // Get all sellers
-  async getAllSellers(): Promise<Seller[]> {
-    return await this.sellerRepository.find({
+  async getAllSellers(): Promise<User[]> {
+    return await this.userRepository.find({
+      where: { role: Role.SELLER },
       order: {
         fullName: 'ASC'
       }
@@ -96,13 +99,13 @@ export class SellerService {
   }
 
   // Legacy methods for backward compatibility
-  async getInfo(): Promise<Seller[]> {
+  async getInfo(): Promise<User[]> {
     return await this.getAllSellers();
   }
 
-  async getInfoById(id: string): Promise<Seller> {
-    const seller = await this.sellerRepository.findOne({
-      where: { id }
+  async getInfoById(id: string): Promise<User> {
+    const seller = await this.userRepository.findOne({
+      where: { id: Number(id), role: Role.SELLER }
     });
 
     if (!seller) {
@@ -113,71 +116,71 @@ export class SellerService {
   }
 
   // Legacy add method
-  async addSeller(sellerDto: SellerDto): Promise<Seller> {
+  async addSeller(sellerDto: SellerDto): Promise<User> {
     return await this.createSeller(sellerDto);
   }
 
   // Update seller
-    async updateUser(id: string, sellerDto: SellerDto): Promise<Seller> {
-    const seller = await this.sellerRepository.findOne({ where: { id } });
+    async updateUser(id: string, sellerDto: SellerDto): Promise<User> {
+      const seller = await this.userRepository.findOne({ where: { id: Number(id), role: Role.SELLER } });
     
-    if (!seller) {
-      throw new NotFoundException(`Seller with ID '${id}' not found`);
+      if (!seller) {
+        throw new NotFoundException(`Seller with ID '${id}' not found`);
+      }
+
+      const updateData: any = {
+        fullName: sellerDto.fullName,
+        phone: sellerDto.phone,
+        isActive: sellerDto.isActive
+      };
+
+      if (sellerDto.password) {
+        updateData.password = await bcrypt.hash(sellerDto.password, this.saltRounds);
+      }
+
+      Object.assign(seller, updateData);
+    
+      const updatedSeller = await this.userRepository.save(seller);
+    
+      // Return without password
+      const { password: _, ...sellerWithoutPassword } = updatedSeller;
+      return sellerWithoutPassword as User;
     }
-
-    
-    const updateData: any = {
-      fullName: sellerDto.fullName,
-      phone: sellerDto.phone,
-      isActive: sellerDto.isActive
-    };
-
-    if (sellerDto.password) {
-      updateData.password = await bcrypt.hash(sellerDto.password, this.saltRounds);
-    }
-
-    Object.assign(seller, updateData);
-    
-    const updatedSeller = await this.sellerRepository.save(seller);
-    
-    // Return without password
-    const { password: _, ...sellerWithoutPassword } = updatedSeller;
-    return sellerWithoutPassword as Seller;
-  }
 
   // Delete seller
   async deleteUser(id: string): Promise<boolean> {
-    const result = await this.sellerRepository.delete({ id });
+    const result = await this.userRepository.delete({ id: Number(id), role: Role.SELLER });
     return result.affected > 0;
   }
   
   // Update partial seller
-  async updatePartialUser(id: string, sellerDto: Partial<SellerDto>): Promise<Seller> {
-    const seller = await this.sellerRepository.findOne({ where: { id } });
+  async updatePartialUser(id: string, sellerDto: Partial<SellerDto>): Promise<User> {
+    const seller = await this.userRepository.findOne({ where: { id: Number(id), role: Role.SELLER } });
     
     if (!seller) {
       throw new NotFoundException(`Seller with ID '${id}' not found`);
     }
 
-    // ✅ Hash password if it's being updated
+    //Hash password if it's being updated
     if (sellerDto.password) {
       sellerDto.password = await bcrypt.hash(sellerDto.password, this.saltRounds);
     }
 
     Object.assign(seller, sellerDto);
     
-    const updatedSeller = await this.sellerRepository.save(seller);
+    const updatedSeller = await this.userRepository.save(seller);
     
     // Return without password
     const { password: _, ...sellerWithoutPassword } = updatedSeller;
-    return sellerWithoutPassword as Seller;
+    return sellerWithoutPassword as User;
   }
 
   // Search sellers by substring in full name
-   async searchSellers(substring: string): Promise<Seller[]> {
-    return await this.sellerRepository.find({
+   async searchSellers(substring: string): Promise<User[]> {
+    return await this.userRepository.find({
       where: {
-        fullName: Like(`%${substring}%`)
+        fullName: Like(`%${substring}%`),
+        role: Role.SELLER
       },
       order: {
         fullName: 'ASC'
@@ -185,8 +188,9 @@ export class SellerService {
     });
   }
 
-  async getAllid(): Promise<Seller[]> {
-    return await this.sellerRepository.find({
+  async getAllid(): Promise<User[]> {
+    return await this.userRepository.find({
+      where: { role: Role.SELLER },
       select: ['id'], // Only select the id field
       order: {
         createdAt: 'DESC' // Order by creation date if needed
@@ -194,8 +198,9 @@ export class SellerService {
     });
   }
 
-  async getAllUsernames(): Promise<Seller[]>{
-    return await this.sellerRepository.find({
+  async getAllUsernames(): Promise<User[]> {
+    return await this.userRepository.find({
+      where: { role: Role.SELLER },
       select: ['username'], // Only select the username field
     });
   }
@@ -205,10 +210,10 @@ export class SellerService {
 
   //SIMPLE VERSION: Just return seller without password
 
-async loginSeller(username: string, password: string): Promise<{ message: string; seller: Seller }> {
+async loginSeller(username: string, password: string): Promise<{ message: string; seller: User }> {
   // Get seller with password (need full entity for password comparison)
-  const seller = await this.sellerRepository.findOne({
-    where: { username }
+  const seller = await this.userRepository.findOne({
+    where: { username, role: Role.SELLER }
     // Include password for authentication
   });
 
@@ -233,32 +238,17 @@ async loginSeller(username: string, password: string): Promise<{ message: string
   
   return {
     message: 'Login successful',
-    seller: sellerWithoutPassword as Seller
+    seller: sellerWithoutPassword as User
   };
 }
 
   // One-to-Many Relationship Methods
   
   // Get seller with their products
-  async getSellerWithProducts(sellerId: string): Promise<Seller> {
-    const seller = await this.sellerRepository.findOne({
-      where: { id: sellerId },
-      relations: ['products'],
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        phone: true,
-        isActive: true,
-        products: {
-          id: true,
-          name: true,
-          description: true,
-          price: true,
-          isActive: true,
-          imageUrl: true
-        }
-      }
+  async getSellerWithProducts(sellerId: string): Promise<User> {
+    const seller = await this.userRepository.findOne({
+      where: { id: Number(sellerId), role: Role.SELLER },
+      relations: ['products']
     });
 
     if (!seller) {
@@ -268,20 +258,21 @@ async loginSeller(username: string, password: string): Promise<{ message: string
     return seller;
   }
 
-  // Get all sellers with their product count
+  // Get all sellers with their product count// password excluded for security
   async getAllSellersWithProductCount(): Promise<any[]> {
-    const sellersWithProductCount = await this.sellerRepository
-      .createQueryBuilder('seller')
-      .leftJoinAndSelect('seller.products', 'product')
+    const sellersWithProductCount = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.products', 'product')
+      .where('user.role = :role', { role: Role.SELLER })
       .select([
-        'seller.id',
-        'seller.username',
-        'seller.fullName',
-        'seller.phone',
-        'seller.isActive',
+        'user.id',
+        'user.username',
+        'user.fullName',
+        'user.phone',
+        'user.isActive',
         'COUNT(product.id) as productCount'
       ])
-      .groupBy('seller.id, seller.username, seller.fullName, seller.phone, seller.isActive')
+      .groupBy('user.id, user.username, user.fullName, user.phone, user.isActive')
       .getRawMany();
 
     return sellersWithProductCount;
@@ -289,8 +280,8 @@ async loginSeller(username: string, password: string): Promise<{ message: string
 
   // Get active products for a specific seller
   async getActiveProductsBySeller(sellerId: string): Promise<Product[]> {
-    const seller = await this.sellerRepository.findOne({
-      where: { id: sellerId }
+    const seller = await this.userRepository.findOne({
+      where: { id: Number(sellerId), role: Role.SELLER }
     });
 
     if (!seller) {
@@ -299,24 +290,16 @@ async loginSeller(username: string, password: string): Promise<{ message: string
 
     return await this.productRepository.find({
       where: { 
-        sellerId: sellerId,
+        seller: seller,
         isActive: true 
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        price: true,
-        isActive: true,
-        imageUrl: true
       }
     });
   }
 
   // Create product for a seller
   async createProductForSeller(sellerId: string, productDto: ProductDto): Promise<Product> {
-    const seller = await this.sellerRepository.findOne({
-      where: { id: sellerId }
+    const seller = await this.userRepository.findOne({
+      where: { id: Number(sellerId), role: Role.SELLER }
     });
 
     if (!seller) {
@@ -328,8 +311,13 @@ async loginSeller(username: string, password: string): Promise<{ message: string
     }
 
     const product = this.productRepository.create({
-      ...productDto,
-      sellerId: sellerId
+      name: productDto.name,
+      description: productDto.description,
+      price: productDto.price,
+      isActive: productDto.isActive ?? true,
+      imageUrl: productDto.imageUrl,
+      seller: seller,
+      userId: seller.id,
     });
 
     return await this.productRepository.save(product);
@@ -337,8 +325,8 @@ async loginSeller(username: string, password: string): Promise<{ message: string
 
   // Get seller's product statistics
   async getSellerProductStats(sellerId: string): Promise<any> {
-    const seller = await this.sellerRepository.findOne({
-      where: { id: sellerId }
+    const seller = await this.userRepository.findOne({
+      where: { id: Number(sellerId), role: Role.SELLER }
     });
 
     if (!seller) {
@@ -346,11 +334,11 @@ async loginSeller(username: string, password: string): Promise<{ message: string
     }
 
     const totalProducts = await this.productRepository.count({
-      where: { sellerId: sellerId }
+      where: { seller: seller }
     });
 
     const activeProducts = await this.productRepository.count({
-      where: { sellerId: sellerId, isActive: true }
+      where: { seller: seller, isActive: true }
     });
 
     const inactiveProducts = totalProducts - activeProducts;
@@ -369,9 +357,9 @@ async loginSeller(username: string, password: string): Promise<{ message: string
     };
   }
 
-  async getSellerById(sellerId: string): Promise<Seller> {
-    const seller = await this.sellerRepository.findOne({
-      where: { id: sellerId }
+  async getSellerById(sellerId: string): Promise<User> {
+    const seller = await this.userRepository.findOne({
+      where: { id: Number(sellerId), role: Role.SELLER }
     });
 
     if (!seller) {
@@ -379,6 +367,25 @@ async loginSeller(username: string, password: string): Promise<{ message: string
     }
 
     return seller;
+  }
+   
+  
+  async getSellerProductsNameAndDescription(sellerId: string): Promise<any> {
+    const seller = await this.userRepository.findOne({
+      where: { id: Number(sellerId), role: Role.SELLER },
+      relations: ['products']
+    });
+
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    return {
+      products: seller.products.map(product => ({
+        name: product.name,
+        description: product.description
+      }))
+    };
   }
 
 }

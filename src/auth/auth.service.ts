@@ -1,31 +1,31 @@
 import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { TotalUsers } from '../users/entities/totalUsers.entity';
+import { User } from '../users/entities/unified-user.entity';
 import { RegisterDto } from './dto/register.dto/register.dto';
 import { LoginDto } from './dto/login.dto/login.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '../users/entities/role.enum';
-import { access } from 'fs';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(TotalUsers) private userRepo: Repository<TotalUsers>,
+    @InjectRepository(User) private userRepo: Repository<User>, // Changed from TotalUsers
     private jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<Partial<TotalUsers>> {
-    const { username, password, phone, email, role } = registerDto;
+  async register(registerDto: RegisterDto): Promise<Partial<User>> { // Changed return type
+    const { username, password, phone, email, role, fullName } = registerDto;
 
-    // Check if username already exists
-    const existingUser = await this.userRepo.findOne({ where: { username } });
-    if (existingUser) throw new ConflictException('Username already exists');
-
-    // Check if email already exists
-    const existingEmail = await this.userRepo.findOne({ where: { email } });
-    if (existingEmail) throw new ConflictException('Email already exists');
+    // Check if username or email already exists
+    const existingUser = await this.userRepo.findOne({ 
+      where: [
+        { username },
+        { email }
+      ]
+    });
+    if (existingUser) throw new ConflictException('Username or Email already exists!');
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -34,9 +34,10 @@ export class AuthService {
       email,
       password: hashedPassword,
       phone,
-      role: role || Role.USER, // Use provided role or default to USER
+      fullName,
+      role: role || Role.USER,
       isActive: true,
-    });
+    } as User);
 
     await this.userRepo.save(user);
 

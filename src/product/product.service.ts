@@ -1,10 +1,11 @@
+import { Role } from '../users/entities/role.enum';
 import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { Product } from './entities/product.entity';
 import { Repository, ILike } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ProductDto, UpdateProductDto } from './dto/product.dto';
-import { Seller } from '../seller/entities/seller.entity';
-
+// Removed Seller import, use User for seller logic
+import { User } from '../users/entities/unified-user.entity';
 @Injectable()
 export class ProductService {
 
@@ -12,15 +13,16 @@ export class ProductService {
   constructor(
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
-    @InjectRepository(Seller)
-    private sellerRepository: Repository<Seller>,
+    // Removed Seller repository, use User repository for sellers
         // @InjectRepository(Category)
         // private categoryRepository: Repository<Category>,
+        @InjectRepository(User)
+        private userRepository: Repository<User>,
     ) {}
 
     async getAllProducts(): Promise<Product[]> {
         return await this.productRepository.find({
-            relations: ['seller'],
+        relations: ['seller'],
             select: {
                 id: true,
                 name: true,
@@ -30,14 +32,13 @@ export class ProductService {
                 imageUrl: true,
                 createdAt: true,
                 updatedAt: true,
-                sellerId: true,
+                userId: true,
                 seller: {
                     id: true,
                     username: true,
-                    fullName: true,
                     phone: true,
                     isActive: true
-                    // password excluded for security
+                    
                 }
             },
             order: {
@@ -47,37 +48,50 @@ export class ProductService {
     }
 
     async createProduct(productDto: ProductDto): Promise<Product> {
-      const seller = await this.sellerRepository.findOne({ 
-        where: { id: productDto.sellerId },
-        select: ['id', 'username', 'fullName','phone','isActive']
-      });
+      // First, verify the seller exists and is active
+            const seller = await this.userRepository.findOne({ 
+                where: { id: Number(productDto.userId), role: Role.SELLER },
+                select: ['id', 'username', 'phone', 'isActive']
+            });
       
-      if (!seller) {
-          throw new NotFoundException(`Seller with ID '${productDto.sellerId}' not found`);
-      }
+            if (!seller) {
+                    throw new NotFoundException(`Seller with ID '${productDto.userId}' not found`);
+            }
 
-      if(!seller.isActive){
-        throw new ConflictException('Seller account is inactive');
-      }
+            if (!seller.isActive) {
+                throw new ConflictException('Seller account is inactive');
+            }
 
-      const product = this.productRepository.create({
-        name: productDto.name,
-        description: productDto.description,
-        price: productDto.price,
-        isActive: productDto.isActive ?? true,
-        imageUrl: productDto.imageUrl,
-        sellerId: seller.id,
-        seller: seller
-      });
+            // Create product with seller relationship and userId
+            const product = this.productRepository.create({
+                name: productDto.name,
+                description: productDto.description,
+                price: productDto.price,
+                isActive: productDto.isActive ?? true,
+                imageUrl: productDto.imageUrl,
+                seller: seller,
+                userId: seller.id,
+            });
       
-      const savedProduct = await this.productRepository.save(product);
-      return await this.getProductById(savedProduct.id);
+            try {
+                const savedProduct = await this.productRepository.save(product);
+                // Return with seller relationship loaded
+                return await this.productRepository.findOne({
+                    where: { id: savedProduct.id },
+                    relations: ['seller']
+                });
+            } catch (error) {
+                if (error.code === '23503') { // Foreign key violation
+                    throw new ConflictException('Invalid seller ID provided');
+                }
+                throw error;
+            }
     }
 
     async updateProduct(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
         const product = await this.productRepository.findOne({ 
             where: { id },
-            relations: ['seller']
+        relations: ['seller'],
         });
         
         if (!product) {
@@ -91,7 +105,7 @@ export class ProductService {
     async getProductById(id: number): Promise<Product> {
         const product = await this.productRepository.findOne({
             where: { id },
-            relations: ['seller'],
+        relations: ['seller'],
             select: {
                 id: true,
                 name: true,
@@ -101,11 +115,10 @@ export class ProductService {
                 imageUrl: true,
                 createdAt: true,
                 updatedAt: true,
-                sellerId: true,
+                userId: true,
                 seller: {
                     id: true,
                     username: true,
-                    fullName: true,
                     phone: true,
                     isActive: true
                 }
@@ -120,8 +133,8 @@ export class ProductService {
     }
 
     async getProductsBySellerId(sellerId: string): Promise<Product[]> {
-        const seller = await this.sellerRepository.findOne({
-            where: { id: sellerId }
+        const seller = await this.userRepository.findOne({
+            where: { id: Number(sellerId), role: Role.SELLER }
         });
 
         if (!seller) {
@@ -129,26 +142,8 @@ export class ProductService {
         }
 
         return await this.productRepository.find({
-            where: { sellerId },
+            where: { userId: seller.id },
             relations: ['seller'],
-            select: {
-                id: true,
-                name: true,
-                description: true,
-                price: true,
-                isActive: true,
-                imageUrl: true,
-                createdAt: true,
-                updatedAt: true,
-                sellerId: true,
-                seller: {
-                    id: true,
-                    username: true,
-                    fullName: true,
-                    phone: true,
-                    isActive: true
-                }
-            },
             order: {
                 createdAt: 'DESC'
             }
@@ -161,15 +156,6 @@ export class ProductService {
                 name: ILike(`%${name}%`)
             },
             relations: ['seller'],
-            select: {
-                seller: {
-                    id: true,
-                    username: true,
-                    fullName: true,
-                    phone: true,
-                    isActive: true
-                }
-            }
         });
     }
 
@@ -188,8 +174,8 @@ export class ProductService {
     
     // Get products by seller username
     async getProductsBySellerUsername(username: string): Promise<Product[]> {
-        const seller = await this.sellerRepository.findOne({
-            where: { username }
+        const seller = await this.userRepository.findOne({
+            where: { username, role: Role.SELLER }
         });
 
         if (!seller) {
@@ -197,23 +183,8 @@ export class ProductService {
         }
 
         return await this.productRepository.find({
-            where: { sellerId: seller.id },
+            where: { seller: seller },
             relations: ['seller'],
-            select: {
-                id: true,
-                name: true,
-                description: true,
-                price: true,
-                isActive: true,
-                imageUrl: true,
-                seller: {
-                    id: true,
-                    username: true,
-                    fullName: true,
-                    phone: true,
-                    isActive: true
-                }
-            }
         });
     }
 
@@ -221,22 +192,8 @@ export class ProductService {
     async getActiveProductsWithSeller(): Promise<Product[]> {
         return await this.productRepository.find({
             where: { isActive: true },
-            relations: ['seller'],
-            select: {
-                id: true,
-                name: true,
-                description: true,
-                price: true,
-                isActive: true,
-                imageUrl: true,
-                seller: {
-                    id: true,
-                    username: true,
-                    fullName: true,
-                    phone: true,
-                    isActive: true
-                }
-            }
+        relations: ['seller'],
+            // Removed select block for simplicity
         });
     }
 
@@ -245,22 +202,6 @@ export class ProductService {
         const product = await this.productRepository.findOne({
             where: { id: productId },
             relations: ['seller'],
-            select: {
-                id: true,
-                name: true,
-                description: true,
-                price: true,
-                isActive: true,
-                imageUrl: true,
-                sellerId: true,
-                seller: {
-                    id: true,
-                    username: true,
-                    fullName: true,
-                    phone: true,
-                    isActive: true
-                }
-            }
         });
 
         if (!product) {
@@ -278,7 +219,6 @@ export class ProductService {
             .select([
                 'seller.id',
                 'seller.username', 
-                'seller.fullName',
                 'seller.phone',
                 'seller.isActive',
                 'COUNT(product.id) as productCount'
@@ -306,7 +246,6 @@ export class ProductService {
                 'product.imageUrl',
                 'seller.id',
                 'seller.username',
-                'seller.fullName',
                 'seller.phone',
                 'seller.isActive'
             ])

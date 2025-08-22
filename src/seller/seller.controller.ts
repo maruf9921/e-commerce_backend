@@ -42,13 +42,17 @@ export class SellerController {
   }
 
   // Search sellers by full name
+  /*@UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN)
   @Get('search')
   async getSellersByFullName(
     @Query('fullName', SellerSearchValidationPipe) fullName: string,
   ) {
     return await this.sellerService.getSellersByFullNameSubstring(fullName);
-  }
+  }*/
 
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN)
   // Get seller by username
   @Get('username/:username')
   async getSellerByUsername(
@@ -137,12 +141,16 @@ export class SellerController {
   // One-to-Many Relationship Endpoints
 
   // Get seller with their products
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SELLER)
   @Get(':id/products')
   async getSellerWithProducts(@Param('id') sellerId: string) {
     return await this.sellerService.getSellerWithProducts(sellerId);
   }
 
   // Get all sellers with product count
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SELLER)
   @Get('stats/product-counts')
   async getAllSellersWithProductCount() {
     return await this.sellerService.getAllSellersWithProductCount();
@@ -171,4 +179,12 @@ export class SellerController {
   async getSellerProductStats(@Param('id') sellerId: string) {
     return await this.sellerService.getSellerProductStats(sellerId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SELLER)
+  @Get(':id/products/names-descriptions')
+  async getSellerProductsNameAndDescription(@Param('id') sellerId: string) {
+    return await this.sellerService.getSellerProductsNameAndDescription(sellerId);
+  }
+
 }

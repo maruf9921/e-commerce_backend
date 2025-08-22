@@ -11,6 +11,8 @@ import {
   ValidationPipe,
   Query,
   UseGuards,
+  UseFilters,
+  HttpException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
@@ -31,6 +33,7 @@ export class UsersController {
   // ================================
 
   // Get all users
+ 
   @Get()
   async getAllUsers() {
     return await this.usersService.getAllUsers();

@@ -2,8 +2,8 @@ import { IsNotEmpty, IsPositive, IsString, MaxLength, IsOptional, IsBoolean, Min
 
 export class ProductDto {
     @IsString()
-    @IsNotEmpty({ message: 'Seller ID is required' })
-    sellerId: string;
+    @IsNotEmpty({ message: 'User ID is required' })
+    userId: string;
 
     @IsString()
     @IsNotEmpty({ message: 'Product name is required' })

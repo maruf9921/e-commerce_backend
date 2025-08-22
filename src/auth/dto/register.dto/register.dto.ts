@@ -1,10 +1,5 @@
 import { IsEmail, IsNotEmpty, IsString, Matches, MaxLength, MinLength, IsOptional, IsEnum } from "class-validator";
-
-enum Role {
-  USER = 'user',
-  ADMIN = 'admin',
-  SELLER = 'seller'
-}
+import { Role } from "../../../users/entities/role.enum";
 
 export class RegisterDto {
      @IsString()
@@ -36,7 +31,12 @@ export class RegisterDto {
       email: string;
 
       @IsOptional()
-      @IsEnum(Role, { message: 'Role must be one of: user, admin, seller' })
+      @IsString()
+      @MaxLength(150, { message: 'Full name cannot exceed 150 characters' })
+      fullName?: string;
+
+      @IsOptional()
+      @IsEnum(Role, { message: 'Role must be one of: USER, ADMIN, SELLER' })
       role?: Role;
 
 }
