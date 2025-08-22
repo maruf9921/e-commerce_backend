@@ -30,7 +30,7 @@ import { User } from './users/entities/unified-user.entity';
       database: process.env.DB_DATABASE || 'e_commerce',
       entities: [User, Product],
       synchronize: false,
-      logging: false,
+      logging: true,
     }),
     AdminModule,
     SellerModule,
