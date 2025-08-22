@@ -41,7 +41,7 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
-# ENV_SETUP_GUIDE.md
+ENV_SETUP_GUIDE.md
 
 # temp directory
 .temp
