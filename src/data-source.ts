@@ -1,18 +1,20 @@
 import { DataSource } from 'typeorm';
+import { config } from 'dotenv';
 import { User } from './users/entities/unified-user.entity';
 import { Product } from './product/entities/product.entity';
 
-export const AppDataSource = new DataSource({
-    type: 'postgres',
-    host: 'localhost',
-    port: 5432,
-    username: 'postgres',
-    password: 'postgres',
-    database: 'e_commerce',
-    entities: [User, Product],
-    synchronize: false,
-    migrations: ['src/migration/*.ts'],
-    logging: true,
-});
+// Load environment variables
+config();
 
-// Removed default export to ensure only one DataSource export for TypeORM CLI
+export default new DataSource({
+  type: 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT) || 5432,
+  username: process.env.DB_USERNAME || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_DATABASE || 'e_commerce',
+  entities: [User, Product],
+  migrations: ['src/migration/*.ts'],
+  synchronize: process.env.DB_SYNCHRONIZE === 'true',
+  logging: process.env.DB_LOGGING === 'true',
+});

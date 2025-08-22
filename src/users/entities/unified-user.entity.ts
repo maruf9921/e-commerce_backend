@@ -12,7 +12,7 @@ export class User {
     @Column({
         type: 'varchar',
         length: 50,
-        nullable: false,
+        nullable: true, // Changed to true since not all users are sellers
         unique: true,
     })
     sellerId?: string;
@@ -93,6 +93,7 @@ export class User {
             const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
             this.sellerId = `SELLER_${timestamp}_${randomNum}`;
         }
+        // For non-sellers, sellerId remains undefined (nullable)
     }
 
     // Helper method to check if user is a seller

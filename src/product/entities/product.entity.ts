@@ -2,7 +2,6 @@
 import { User } from '../../users/entities/unified-user.entity';
 import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 
-
 @Entity('products')
 export class Product {
     @PrimaryGeneratedColumn()

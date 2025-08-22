@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module';
 import { SellerModule } from './seller/seller.module';
@@ -12,20 +14,23 @@ import { MaillerService } from './mailler/mailler.service';
 import { MaillerController } from './mailler/mailler.controller';
 import { Product } from './product/entities/product.entity';
 import { User } from './users/entities/unified-user.entity';
-//import { ForeignKeyTestModule } from './test/foreign-key-test.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'postgres',
-      database: 'e_commerce',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT) || 5432,
+      username: process.env.DB_USERNAME || 'postgres',
+      password: process.env.DB_PASSWORD || 'postgres',
+      database: process.env.DB_DATABASE || 'e_commerce',
       entities: [User, Product],
-      synchronize: false, // Set to false when using migrations
-      logging: true, // Optional: to see SQL queries
+      synchronize: false,
+      logging: false,
     }),
     AdminModule,
     SellerModule,
@@ -35,7 +40,6 @@ import { User } from './users/entities/unified-user.entity';
     UsersModule,
     AuthModule,
     MaillerModule,
-    
   ],
   controllers: [MaillerController],
   providers: [MaillerService],

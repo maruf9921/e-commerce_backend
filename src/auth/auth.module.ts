@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -11,9 +12,15 @@ import { JwtStrategy } from './jwt.strategy/jwt.strategy';
   imports: [
     TypeOrmModule.forFeature([User]), // Changed from TotalUsers
     PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'my-fallback-secret-key-for-development',
-      signOptions: { expiresIn: '1h' },
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET') ,
+        signOptions: { 
+          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1h' 
+        },
+      }),
+      inject: [ConfigService],
     }),
   ],
   providers: [AuthService, JwtStrategy],
