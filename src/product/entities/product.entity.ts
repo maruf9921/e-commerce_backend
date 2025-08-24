@@ -37,7 +37,7 @@ export class Product {
         nullable: false,
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
-        eager: true
+        eager: false
     })
     @JoinColumn({ name: 'userId', referencedColumnName: 'id' })
     seller: User;

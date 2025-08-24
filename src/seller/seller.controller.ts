@@ -21,6 +21,9 @@ import { ProductDto } from '../product/dto/product.dto';
 import { Roles } from 'src/auth/roles.decorator/roles.decorator';
 import { Role } from '../users/entities/role.enum';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/roles/roles.guard';
+import { CreateProductDto } from '../product/dto/product.dto';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 
 @Controller('sellers')
 export class SellerController {
@@ -162,16 +165,21 @@ export class SellerController {
     return await this.sellerService.getActiveProductsBySeller(sellerId);
   }
 
-  // Create product for a seller (Protected - Sellers only)
-  @UseGuards(JwtAuthGuard)
+  // Create product for a seller (Protected - Sellers only) - FIXED: Uses JWT authentication
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SELLER)
   @Post(':id/products')
   @UsePipes(ValidationPipe)
   async createProductForSeller(
     @Param('id') sellerId: string,
-    @Body() productDto: ProductDto
+    @Body() createProductDto: CreateProductDto,
+    @CurrentUser() user: any
   ) {
-    return await this.sellerService.createProductForSeller(sellerId, productDto);
+    // Verify that the authenticated user is creating products for themselves
+    if (user.id.toString() !== sellerId) {
+      throw new Error('You can only create products for your own account');
+    }
+    return await this.sellerService.createProductForSeller(sellerId, createProductDto);
   }
 
   // Get seller's product statistics

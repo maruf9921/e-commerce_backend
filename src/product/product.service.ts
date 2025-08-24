@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ProductDto, UpdateProductDto } from './dto/product.dto';
 // Removed Seller import, use User for seller logic
 import { User } from '../users/entities/unified-user.entity';
+import { CreateProductDto } from './dto/product.dto';
 @Injectable()
 export class ProductService {
 
@@ -88,6 +89,82 @@ export class ProductService {
             }
     }
 
+    // NEW: Create product using authenticated user from JWT
+    async createProductWithAuth(createProductDto: CreateProductDto, authenticatedUser: any): Promise<Product> {
+        // Verify the authenticated user exists and is active (ADMIN or SELLER)
+        const user = await this.userRepository.findOne({ 
+            where: { 
+                id: authenticatedUser.id
+            },
+            select: ['id', 'username', 'phone', 'isActive', 'role', 'sellerId']
+        });
+
+        if (!user) {
+            throw new NotFoundException(`User with ID '${authenticatedUser.id}' not found`);
+        }
+
+        if (!user.isActive) {
+            throw new ConflictException('User account is inactive');
+        }
+
+        // Handle different user roles
+        if (user.role === Role.ADMIN) {
+            // For ADMIN users, create product without seller relationship initially
+            const product = this.productRepository.create({
+                name: createProductDto.name,
+                description: createProductDto.description,
+                price: createProductDto.price,
+                isActive: createProductDto.isActive ?? true,
+                imageUrl: createProductDto.imageUrl,
+                userId: user.id, // Use admin's primary key
+            });
+
+            try {
+                const savedProduct = await this.productRepository.save(product);
+                // Now load the product with seller relationship
+                return await this.productRepository.findOne({
+                    where: { id: savedProduct.id },
+                    relations: ['seller']
+                });
+            } catch (error) {
+                if (error.code === '23503') {
+                    throw new ConflictException('Invalid user ID provided');
+                }
+                throw error;
+            }
+        } else if (user.role === Role.SELLER) {
+            // For SELLER users, use their seller ID to create products
+            if (!user.sellerId) {
+                throw new ConflictException('Seller ID is required for seller users');
+            }
+
+            const product = this.productRepository.create({
+                name: createProductDto.name,
+                description: createProductDto.description,
+                price: createProductDto.price,
+                isActive: createProductDto.isActive ?? true,
+                imageUrl: createProductDto.imageUrl,
+                seller: user,
+                userId: user.id, // Use seller's primary key
+            });
+
+            try {
+                const savedProduct = await this.productRepository.save(product);
+                return await this.productRepository.findOne({
+                    where: { id: savedProduct.id },
+                    relations: ['seller']
+                });
+            } catch (error) {
+                if (error.code === '23503') {
+                    throw new ConflictException('Invalid seller ID provided');
+                }
+                throw error;
+            }
+        } else {
+            throw new ConflictException('Only ADMIN and SELLER users can create products');
+        }
+    }
+
     async updateProduct(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
         const product = await this.productRepository.findOne({ 
             where: { id },
@@ -133,16 +210,28 @@ export class ProductService {
     }
 
     async getProductsBySellerId(sellerId: string): Promise<Product[]> {
-        const seller = await this.userRepository.findOne({
-            where: { id: Number(sellerId), role: Role.SELLER }
+        const user = await this.userRepository.findOne({
+            where: { id: Number(sellerId) }
         });
 
-        if (!seller) {
-            throw new NotFoundException(`Seller with ID '${sellerId}' not found`);
+        if (!user) {
+            throw new NotFoundException(`User with ID '${sellerId}' not found`);
         }
 
+        // For admin users, return products created by admin (using primary key)
+        if (user.role === Role.ADMIN) {
+            return await this.productRepository.find({
+                where: { userId: user.id }, // Admin's products using primary key
+                relations: ['seller'],
+                order: {
+                    createdAt: 'DESC'
+                }
+            });
+        }
+
+        // For seller users, return only their products (using primary key)
         return await this.productRepository.find({
-            where: { userId: seller.id },
+            where: { userId: user.id }, // Seller's products using primary key
             relations: ['seller'],
             order: {
                 createdAt: 'DESC'
@@ -251,4 +340,38 @@ export class ProductService {
             ])
             .getMany();
     }
+
+    async getProductImage1(id: number): Promise<string> {
+        const product = await this.productRepository.findOne({
+            where: { id: id },
+            select: ['id', 'name', 'imageUrl']
+        });
+
+        if (!product) {
+            throw new NotFoundException(`Product with ID ${id} not found`);
+        }
+
+        if (!product.imageUrl) {
+            throw new NotFoundException(`No image found for product with ID ${id}`);
+        }
+
+        return product.imageUrl;
+    }
+
+    async getProductImage(id: number) {
+    // Example: Map product ID to image filename
+    // In real code, fetch from DB
+    const imageMap = {
+      5: '1755224860078-Screenshot from 2025-06-24 01-51-42.png',
+      // Add more mappings as needed
+    };
+    const filename = imageMap[id];
+    if (!filename) {
+      return { image: null };
+    }
+    // Construct the image URL
+    return {
+      image: `http://localhost:4000/image/${filename}`,
+    };
+  }
 }

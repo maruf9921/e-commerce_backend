@@ -7,6 +7,7 @@ import { SellerDto } from './dto/seller.dto';
 import * as bcrypt from 'bcrypt';
 import { Product } from '../product/entities/product.entity';
 import { ProductDto } from 'src/product/dto/product.dto';
+import { CreateProductDto } from 'src/product/dto/product.dto';
 
 @Injectable()
 export class SellerService {
@@ -296,8 +297,8 @@ async loginSeller(username: string, password: string): Promise<{ message: string
     });
   }
 
-  // Create product for a seller
-  async createProductForSeller(sellerId: string, productDto: ProductDto): Promise<Product> {
+  // Create product for a seller - FIXED: Uses CreateProductDto (no userId needed)
+  async createProductForSeller(sellerId: string, createProductDto: CreateProductDto): Promise<Product> {
     const seller = await this.userRepository.findOne({
       where: { id: Number(sellerId), role: Role.SELLER }
     });
@@ -311,11 +312,11 @@ async loginSeller(username: string, password: string): Promise<{ message: string
     }
 
     const product = this.productRepository.create({
-      name: productDto.name,
-      description: productDto.description,
-      price: productDto.price,
-      isActive: productDto.isActive ?? true,
-      imageUrl: productDto.imageUrl,
+      name: createProductDto.name,
+      description: createProductDto.description,
+      price: createProductDto.price,
+      isActive: createProductDto.isActive ?? true,
+      imageUrl: createProductDto.imageUrl,
       seller: seller,
       userId: seller.id,
     });
