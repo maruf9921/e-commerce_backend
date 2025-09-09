@@ -22,10 +22,10 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "typeorm": "typeorm-ts-node-commonjs",
-    "migration:generate": "npm run typeorm -- migration:generate -d ormconfig.ts",
-    "migration:run": "npm run typeorm -- migration:run -d ormconfig.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d ormconfig.ts",
-    "schema:sync": "npm run typeorm -- schema:sync -d ormconfig.ts"
+    "migration:generate": "npm run typeorm -- migration:generate -d src/data-source.ts",
+    "migration:run": "npm run typeorm -- migration:run -d dist/src/data-source.js",
+    "migration:revert": "npm run typeorm -- migration:revert -d dist/src/data-source.js",
+    "schema:sync": "npm run typeorm -- schema:sync -d src/data-source.ts"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^1.6.1",

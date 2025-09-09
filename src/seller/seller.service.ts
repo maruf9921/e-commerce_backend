@@ -316,7 +316,6 @@ async loginSeller(username: string, password: string): Promise<{ message: string
       description: createProductDto.description,
       price: createProductDto.price,
       isActive: createProductDto.isActive ?? true,
-      imageUrl: createProductDto.imageUrl,
       seller: seller,
       userId: seller.id,
     });

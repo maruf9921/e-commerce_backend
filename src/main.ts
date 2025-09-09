@@ -4,6 +4,8 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { config } from 'dotenv';
+config()
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -11,9 +13,21 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   
   app.useGlobalPipes(new ValidationPipe());
+  
+  // Get CORS origins from environment variable or use defaults
+  const corsOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+    : [
+        'http://localhost:3000', // Next.js default port
+        'http://localhost:4050', // Your frontend port
+        'http://localhost:4051', // Alternative frontend port
+      ];
+  
   app.enableCors({
-    origin: configService.get<string>('CORS_ORIGIN') || 'http://localhost:3000',
-    credentials: configService.get<boolean>('CORS_CREDENTIALS') || true,
+    origin: corsOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   // FIXED: Proper static file serving configuration
@@ -22,6 +36,18 @@ async function bootstrap() {
   
   app.useStaticAssets(imagePath, {
     prefix: '/images/',
+    setHeaders: (res, path) => {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Cache-Control', 'public, max-age=31536000');
+    }
+  });
+
+  // NEW: Static serving for uploaded images - FIXED PATH
+  const uploadsPath = join(process.cwd(), 'uploads');
+  console.log('📁 Uploads path:', uploadsPath);
+  
+  app.useStaticAssets(uploadsPath, {
+    prefix: '/uploads/',
     setHeaders: (res, path) => {
       res.set('Access-Control-Allow-Origin', '*');
       res.set('Cache-Control', 'public, max-age=31536000');

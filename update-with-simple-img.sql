@@ -18,3 +18,4 @@ WHERE id = 2;
 UPDATE products 
 SET "imageUrl" = 'http://localhost:4050/products/img/1'
 WHERE id = 1;
+

@@ -1,6 +1,7 @@
 import { Role } from '../users/entities/role.enum';
 import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { Product } from './entities/product.entity';
+import { ProductImage } from './entities/image.entity';
 import { Repository, ILike } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ProductDto, UpdateProductDto } from './dto/product.dto';
@@ -14,6 +15,8 @@ export class ProductService {
   constructor(
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
+    @InjectRepository(ProductImage)
+    private productImageRepository: Repository<ProductImage>,
     // Removed Seller repository, use User repository for sellers
         // @InjectRepository(Category)
         // private categoryRepository: Repository<Category>,
@@ -23,14 +26,13 @@ export class ProductService {
 
     async getAllProducts(): Promise<Product[]> {
         return await this.productRepository.find({
-        relations: ['seller'],
+        relations: ['seller', 'images'],
             select: {
                 id: true,
                 name: true,
                 description: true,
                 price: true,
                 isActive: true,
-                imageUrl: true,
                 createdAt: true,
                 updatedAt: true,
                 userId: true,
@@ -63,22 +65,24 @@ export class ProductService {
                 throw new ConflictException('Seller account is inactive');
             }
 
-            // Create product with seller relationship and userId
-            const product = this.productRepository.create({
+            // Prepare product data with processed image URL and slug
+            const preparedData = this.prepareProductData({
                 name: productDto.name,
                 description: productDto.description,
                 price: productDto.price,
-                isActive: productDto.isActive ?? true,
-                imageUrl: productDto.imageUrl,
+                isActive: productDto.isActive,
                 seller: seller,
                 userId: seller.id,
             });
+
+            // Create product with seller relationship and userId
+            const product = this.productRepository.create(preparedData);
       
             try {
                 const savedProduct = await this.productRepository.save(product);
                 // Return with seller relationship loaded
                 return await this.productRepository.findOne({
-                    where: { id: savedProduct.id },
+                    where: { id: (savedProduct as any).id },
                     relations: ['seller']
                 });
             } catch (error) {
@@ -89,7 +93,7 @@ export class ProductService {
             }
     }
 
-    // NEW: Create product using authenticated user from JWT
+        // NEW: Create product using authenticated user from JWT
     async createProductWithAuth(createProductDto: CreateProductDto, authenticatedUser: any): Promise<Product> {
         // Verify the authenticated user exists and is active (ADMIN or SELLER)
         const user = await this.userRepository.findOne({ 
@@ -100,69 +104,50 @@ export class ProductService {
         });
 
         if (!user) {
-            throw new NotFoundException(`User with ID '${authenticatedUser.id}' not found`);
+            throw new NotFoundException(`User with ID ${authenticatedUser.id} not found`);
         }
 
         if (!user.isActive) {
-            throw new ConflictException('User account is inactive');
+            throw new UnauthorizedException('User account is deactivated');
         }
 
-        // Handle different user roles
-        if (user.role === Role.ADMIN) {
-            // For ADMIN users, create product without seller relationship initially
-            const product = this.productRepository.create({
-                name: createProductDto.name,
-                description: createProductDto.description,
-                price: createProductDto.price,
-                isActive: createProductDto.isActive ?? true,
-                imageUrl: createProductDto.imageUrl,
-                userId: user.id, // Use admin's primary key
-            });
-
-            try {
-                const savedProduct = await this.productRepository.save(product);
-                // Now load the product with seller relationship
-                return await this.productRepository.findOne({
-                    where: { id: savedProduct.id },
-                    relations: ['seller']
-                });
-            } catch (error) {
-                if (error.code === '23503') {
-                    throw new ConflictException('Invalid user ID provided');
-                }
-                throw error;
-            }
-        } else if (user.role === Role.SELLER) {
-            // For SELLER users, use their seller ID to create products
-            if (!user.sellerId) {
-                throw new ConflictException('Seller ID is required for seller users');
-            }
-
-            const product = this.productRepository.create({
-                name: createProductDto.name,
-                description: createProductDto.description,
-                price: createProductDto.price,
-                isActive: createProductDto.isActive ?? true,
-                imageUrl: createProductDto.imageUrl,
-                seller: user,
-                userId: user.id, // Use seller's primary key
-            });
-
-            try {
-                const savedProduct = await this.productRepository.save(product);
-                return await this.productRepository.findOne({
-                    where: { id: savedProduct.id },
-                    relations: ['seller']
-                });
-            } catch (error) {
-                if (error.code === '23503') {
-                    throw new ConflictException('Invalid seller ID provided');
-                }
-                throw error;
-            }
-        } else {
-            throw new ConflictException('Only ADMIN and SELLER users can create products');
+        if (user.role !== Role.ADMIN && user.role !== Role.SELLER) {
+            throw new UnauthorizedException('Only ADMIN or SELLER can create products');
         }
+
+        // Create the product without images first
+        const { images, ...productData } = createProductDto;
+        
+        // Ensure isActive is properly converted to boolean
+        const processedData = {
+            ...productData,
+            userId: user.id,
+            isActive: productData.isActive !== undefined ? Boolean(productData.isActive) : true,
+        };
+        
+        console.log('🔧 Processed Product Data:', processedData);
+        
+        const product = this.productRepository.create(processedData);
+
+        const savedProduct = await this.productRepository.save(product);
+
+        // If images are provided, create them
+        if (images && images.length > 0) {
+            const productImages = images.map((imageDto, index) => 
+                this.productImageRepository.create({
+                    ...imageDto,
+                    productId: savedProduct.id,
+                    sortOrder: imageDto.sortOrder ?? index,
+                })
+            );
+            await this.productImageRepository.save(productImages);
+        }
+
+        // Return the product with images
+        return this.productRepository.findOne({
+            where: { id: savedProduct.id },
+            relations: ['images', 'seller'],
+        });
     }
 
     async updateProduct(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
@@ -175,21 +160,23 @@ export class ProductService {
             throw new NotFoundException(`Product with ID '${id}' not found`);
         }
         
-        Object.assign(product, updateProductDto);
+        // Prepare update data with processed image URL and slug
+        const preparedUpdateData = this.prepareProductData(updateProductDto);
+        
+        Object.assign(product, preparedUpdateData);
         return await this.productRepository.save(product);
     }
 
     async getProductById(id: number): Promise<Product> {
         const product = await this.productRepository.findOne({
             where: { id },
-        relations: ['seller'],
+        relations: ['seller', 'images'],
             select: {
                 id: true,
                 name: true,
                 description: true,
                 price: true,
                 isActive: true,
-                imageUrl: true,
                 createdAt: true,
                 updatedAt: true,
                 userId: true,
@@ -344,18 +331,25 @@ export class ProductService {
     async getProductImage1(id: number): Promise<string> {
         const product = await this.productRepository.findOne({
             where: { id: id },
-            select: ['id', 'name', 'imageUrl']
+            relations: ['images'],
+            select: ['id', 'name']
         });
 
         if (!product) {
             throw new NotFoundException(`Product with ID ${id} not found`);
         }
 
-        if (!product.imageUrl) {
+        if (!product.images || product.images.length === 0) {
             throw new NotFoundException(`No image found for product with ID ${id}`);
         }
 
-        return product.imageUrl;
+        // Return the first active image URL
+        const activeImage = product.images.find(img => img.isActive);
+        if (!activeImage) {
+            throw new NotFoundException(`No active image found for product with ID ${id}`);
+        }
+
+        return activeImage.imageUrl;
     }
 
     async getProductImage(id: number) {
@@ -372,6 +366,197 @@ export class ProductService {
     // Construct the image URL
     return {
       image: `http://localhost:4000/image/${filename}`,
+    };
+  }
+
+  // Removed duplicate createProduct method to fix compilation error.
+  // Helper method to generate slug (moved from entity)
+  private generateSlug(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[^a-z0-9 -]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .trim();
+  }
+
+  // Helper method to process image URL (moved from entity)
+  private processImageUrl(imageUrl: string): string {
+    if (imageUrl && !imageUrl.startsWith('http')) {
+      const baseUrl = 'http://localhost:4002';
+      return `${baseUrl}/products/static/${imageUrl}`;
+    }
+    return imageUrl;
+  }
+
+  // Helper method to prepare product data (moved from entity hooks)
+  private prepareProductData(productData: any): any {
+    const preparedData = { ...productData };
+
+    // Process image URL if provided
+    if (preparedData.imageUrl) {
+      preparedData.imageUrl = this.processImageUrl(preparedData.imageUrl);
+    }
+
+    // Generate slug from name if not provided
+    if (preparedData.name && !preparedData.slug) {
+      preparedData.slug = this.generateSlug(preparedData.name);
+    }
+
+    // Set default values
+    if (preparedData.isActive === undefined) {
+      preparedData.isActive = true;
+    }
+
+    return preparedData;
+  }
+
+  // NEW: Get all products with their images eagerly loaded
+  async getAllProductsWithImages(): Promise<Product[]> {
+    return await this.productRepository.find({
+      relations: ['seller', 'images'],
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        stockQuantity: true,
+        category: true,
+        isActive: true,
+        slug: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        seller: {
+          id: true,
+          username: true,
+          phone: true,
+          isActive: true
+        },
+        images: {
+          id: true,
+          imageUrl: true,
+          altText: true,
+          isActive: true,
+          sortOrder: true,
+          createdAt: true
+        }
+      },
+      order: {
+        createdAt: 'DESC',
+        images: {
+          sortOrder: 'ASC'
+        }
+      }
+    });
+  }
+
+  // NEW: Get specific product with its images
+  async getProductWithImages(id: number): Promise<Product> {
+    const product = await this.productRepository.findOne({
+      where: { id },
+      relations: ['seller', 'images'],
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        stockQuantity: true,
+        category: true,
+        isActive: true,
+        slug: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        seller: {
+          id: true,
+          username: true,
+          phone: true,
+          isActive: true
+        },
+        images: {
+          id: true,
+          imageUrl: true,
+          altText: true,
+          isActive: true,
+          sortOrder: true,
+          createdAt: true
+        }
+      },
+      order: {
+        images: {
+          sortOrder: 'ASC'
+        }
+      }
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    return product;
+  }
+
+  // NEW: Get list of uploaded image files
+  async getUploadedImagesList(): Promise<{ images: string[], count: number }> {
+    const fs = require('fs');
+    const path = require('path');
+    
+    try {
+      const imagesDir = path.join(process.cwd(), 'uploads', 'images');
+      
+      if (!fs.existsSync(imagesDir)) {
+        return { images: [], count: 0 };
+      }
+      
+      const files = fs.readdirSync(imagesDir);
+      const imageFiles = files.filter(file => {
+        const ext = path.extname(file).toLowerCase();
+        return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+      });
+      
+      return {
+        images: imageFiles.map(filename => ({
+          filename,
+          url: `${process.env.BASE_URL || 'http://localhost:4002'}/uploads/images/${filename}`,
+          accessUrl: `${process.env.BASE_URL || 'http://localhost:4002'}/image-upload/pic/${filename}`
+        })),
+        count: imageFiles.length
+      };
+    } catch (error) {
+      console.error('Error reading images directory:', error);
+      return { images: [], count: 0 };
+    }
+  }
+
+  // NEW: Get images for a specific product
+  async getProductImages(productId: number) {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+      relations: ['images'],
+      select: {
+        id: true,
+        name: true,
+        images: {
+          id: true,
+          imageUrl: true,
+          altText: true,
+          isActive: true,
+          sortOrder: true,
+          createdAt: true
+        }
+      }
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${productId} not found`);
+    }
+
+    return {
+      productId: product.id,
+      productName: product.name,
+      images: product.images.sort((a, b) => a.sortOrder - b.sortOrder),
+      imageCount: product.images.length
     };
   }
 }

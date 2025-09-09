@@ -13,6 +13,7 @@ import { MaillerModule } from './mailler/mailler.module';
 import { MaillerService } from './mailler/mailler.service';
 import { MaillerController } from './mailler/mailler.controller';
 import { Product } from './product/entities/product.entity';
+import { ProductImage } from './product/entities/image.entity';
 import { User } from './users/entities/unified-user.entity';
 
 @Module({
@@ -28,7 +29,7 @@ import { User } from './users/entities/unified-user.entity';
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || 'e_commerce',
-      entities: [User, Product],
+      entities: [User, Product, ProductImage],
       synchronize: false,
       logging: true,
     }),

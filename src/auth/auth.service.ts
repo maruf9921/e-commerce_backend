@@ -63,7 +63,8 @@ export class AuthService {
       username: user.username, 
       email: user.email,
       role: user.role,
-      isActive: user.isActive
+      isActive: user.isActive,
+      isVerified: user.isVerified
     };
     
     return {
@@ -73,7 +74,8 @@ export class AuthService {
         username: user.username,
         email: user.email,
         role: user.role,
-        isActive: user.isActive
+        isActive: user.isActive,
+        isVerified: user.isVerified
       },
       tokenType: 'Bearer',
       expiresIn: '1h'

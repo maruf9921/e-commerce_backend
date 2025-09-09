@@ -1,0 +1,373 @@
+{
+  "info": {
+    "name": "E-Commerce Seller Verification API",
+    "description": "Complete API collection for testing seller verification system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseURL",
+      "value": "http://localhost:4002"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "sellerToken",
+      "value": ""
+    },
+    {
+      "key": "unverifiedSellerToken",
+      "value": ""
+    },
+    {
+      "key": "sellerId",
+      "value": ""
+    },
+    {
+      "key": "unverifiedSellerId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Register Admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin123\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin@123\",\n  \"phone\": \"1234567890\",\n  \"fullName\": \"System Administrator\",\n  \"role\": \"ADMIN\"\n}"
+        },
+        "url": {
+          "raw": "{{baseURL}}/auth/register",
+          "host": ["{{baseURL}}"],
+          "path": ["auth", "register"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    console.log('Admin registered successfully');",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Admin Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin123\",\n  \"password\": \"Admin@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseURL}}/auth/login",
+          "host": ["{{baseURL}}"],
+          "path": ["auth", "login"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const responseJson = pm.response.json();",
+              "    pm.collectionVariables.set('adminToken', responseJson.access_token);",
+              "    console.log('Admin token saved:', responseJson.access_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Register Seller (Pending)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"seller123\",\n  \"email\": \"seller@example.com\",\n  \"password\": \"Seller@123\",\n  \"phone\": \"9876543210\",\n  \"fullName\": \"John Seller\"\n}"
+        },
+        "url": {
+          "raw": "{{baseURL}}/users/register-seller",
+          "host": ["{{baseURL}}"],
+          "path": ["users", "register-seller"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    const responseJson = pm.response.json();",
+              "    pm.collectionVariables.set('sellerId', responseJson.user.id);",
+              "    console.log('Seller registered with ID:', responseJson.user.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. View Pending Sellers",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseURL}}/admin/sellers/pending",
+          "host": ["{{baseURL}}"],
+          "path": ["admin", "sellers", "pending"]
+        }
+      }
+    },
+    {
+      "name": "5. Verify Seller",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseURL}}/admin/sellers/{{sellerId}}/verify",
+          "host": ["{{baseURL}}"],
+          "path": ["admin", "sellers", "{{sellerId}}", "verify"]
+        }
+      }
+    },
+    {
+      "name": "6. Seller Login (Verified)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"seller123\",\n  \"password\": \"Seller@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseURL}}/auth/login",
+          "host": ["{{baseURL}}"],
+          "path": ["auth", "login"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const responseJson = pm.response.json();",
+              "    pm.collectionVariables.set('sellerToken', responseJson.access_token);",
+              "    console.log('Seller token saved:', responseJson.access_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Create Product (Verified Seller)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sellerToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Product\",\n  \"description\": \"This is a test product created by verified seller\",\n  \"price\": 99.99,\n  \"quantity\": 10,\n  \"category\": \"Electronics\"\n}"
+        },
+        "url": {
+          "raw": "{{baseURL}}/products/create",
+          "host": ["{{baseURL}}"],
+          "path": ["products", "create"]
+        }
+      }
+    },
+    {
+      "name": "8. Register Unverified Seller",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"unverified_seller\",\n  \"email\": \"unverified@example.com\",\n  \"password\": \"Test@123\",\n  \"phone\": \"5555555555\",\n  \"fullName\": \"Unverified Seller\"\n}"
+        },
+        "url": {
+          "raw": "{{baseURL}}/users/register-seller",
+          "host": ["{{baseURL}}"],
+          "path": ["users", "register-seller"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    const responseJson = pm.response.json();",
+              "    pm.collectionVariables.set('unverifiedSellerId', responseJson.user.id);",
+              "    console.log('Unverified seller registered with ID:', responseJson.user.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Login Unverified Seller",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"unverified_seller\",\n  \"password\": \"Test@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseURL}}/auth/login",
+          "host": ["{{baseURL}}"],
+          "path": ["auth", "login"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const responseJson = pm.response.json();",
+              "    pm.collectionVariables.set('unverifiedSellerToken', responseJson.access_token);",
+              "    console.log('Unverified seller token saved');",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Try Create Product (Should Fail)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{unverifiedSellerToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Should Fail Product\",\n  \"description\": \"This should fail because seller is not verified\",\n  \"price\": 49.99,\n  \"quantity\": 5,\n  \"category\": \"Test\"\n}"
+        },
+        "url": {
+          "raw": "{{baseURL}}/products/create",
+          "host": ["{{baseURL}}"],
+          "path": ["products", "create"]
+        }
+      }
+    },
+    {
+      "name": "11. View Verified Sellers",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseURL}}/admin/sellers/verified",
+          "host": ["{{baseURL}}"],
+          "path": ["admin", "sellers", "verified"]
+        }
+      }
+    },
+    {
+      "name": "12. Reject Unverified Seller",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"deleteAccount\": false\n}"
+        },
+        "url": {
+          "raw": "{{baseURL}}/admin/sellers/{{unverifiedSellerId}}/reject",
+          "host": ["{{baseURL}}"],
+          "path": ["admin", "sellers", "{{unverifiedSellerId}}", "reject"]
+        }
+      }
+    }
+  ]
+}

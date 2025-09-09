@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { MaillerService } from './mailler.service';
 import { MaillerController } from './mailler.controller';
 import { MailerModule } from '@nestjs-modules/mailer';
+import {config } from 'dotenv';
+config
 
 @Module({
   imports: [
@@ -12,12 +14,12 @@ import { MailerModule } from '@nestjs-modules/mailer';
         ignoreTLS: true,
         secure: true,
         auth: {
-          user: 'picmi77@gmail.com',
-          pass: 'rjsv azgo mjxq cvjg'
+          user: 'picmi77@gmail.com', // Your email address
+          pass: 'qjvlcarymdgznsfv'
         },
       },
       defaults: {
-        from: '"E-Commerce Platform" <picmi77@gmail.com>',
+        from: `"E-Commerce Platform" <${process.env.MAILER_USER}>`,
       },
     })
   ],

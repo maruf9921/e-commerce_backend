@@ -12,22 +12,104 @@ import {
   ParseIntPipe,
   UseGuards,
   Res,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { ProductDto, UpdateProductDto, CreateProductDto } from './dto/product.dto';
 import { Product } from './entities/product.entity';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
+import { SellerVerifiedGuard } from 'src/auth/guards/seller-verified.guard';
 import { Role } from 'src/users/entities/role.enum';
 import { Roles } from 'src/auth/roles.decorator/roles.decorator';
 import { Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ImageUploadService } from './image-upload/image-upload.service';
+import { storage } from './image-upload/image-upload.controller';
+import { Observable } from 'rxjs/internal/Observable';
+import { of } from 'rxjs';
+import { of as observableOf } from 'rxjs';
+import { diskStorage } from 'multer';
+import { v4 as uuidv4 } from 'uuid';
+import { config } from 'dotenv'
+config();
 
 @Controller('products')
 export class ProductController {
-    constructor(private readonly productService: ProductService) {}
+    constructor(
+        private readonly productService: ProductService,
+        private readonly imageUploadService: ImageUploadService
+    ) {}
+
+    // NEW: Create product with image upload - automatically generates URL
+    @UseGuards(JwtAuthGuard, RolesGuard, SellerVerifiedGuard)
+    @Roles(Role.ADMIN, Role.SELLER)
+    @Post('create-with-image')
+    @UseInterceptors(FileInterceptor('file', {
+        storage: diskStorage({
+            destination: './uploads/images',
+            filename: (req, file, cb) => {
+                const filename = path.parse(file.originalname).name.replace(/\s/g, '') + uuidv4();
+                const extension = path.parse(file.originalname).ext;
+                cb(null, `${filename}${extension}`);
+            }
+        })
+    }))
+    @UsePipes(ValidationPipe)
+    async createProductWithImage(
+        @Body() createProductDto: CreateProductDto,
+        @UploadedFile() imageFile: Express.Multer.File,
+        @CurrentUser() user: any
+    ): Promise<Observable<object>> {
+        console.log('📥 Incoming DTO:', createProductDto);
+        console.log('🖼️ Uploaded File:', imageFile);
+
+        // Handle case where file info might be in DTO instead of imageFile
+        let actualFile = imageFile;
+        let filename = null;
+
+        // Cast to any to access the file property that may come from form-data
+        const dtoWithFile = createProductDto as any;
+
+        if (!actualFile && dtoWithFile.file) {
+            // If file info is in DTO, extract filename from the path
+            const filePath = dtoWithFile.file;
+            if (typeof filePath === 'string' && filePath.includes('uploads/images/')) {
+                filename = filePath.split('uploads/images/')[1] || filePath.split('/').pop();
+                console.log('🔧 Extracted filename from DTO:', filename);
+            }
+        } else if (actualFile) {
+            filename = actualFile.filename;
+        }
+
+        const baseUrl = `${process.env.BASE_URL || 'http://localhost:4002'}/uploads/images/`;
+        const imageUrl = filename ? `${baseUrl}${filename}` : null;
+
+        console.log('🖼️ Generated Image URL:', imageUrl);
+
+        // Clean the DTO (remove file field as it's not part of the product data)
+        const { file, ...cleanedDto } = dtoWithFile;
+
+        // Add the image to the images array if file was uploaded
+        const productData = {
+            ...cleanedDto,
+            images: imageUrl ? [{
+                imageUrl: imageUrl,
+                altText: cleanedDto.name,
+                isActive: true,
+                sortOrder: 0
+            }] : []
+        };
+
+        console.log('📦 Final Product Data:', productData);
+
+        const result = await this.productService.createProductWithAuth(productData, user);
+        return of(result);
+    }
 
     // Get all products with seller information
     @Get()
@@ -36,15 +118,15 @@ export class ProductController {
     }
 
     // Get product by ID
-    @UseGuards(JwtAuthGuard)
-    @Roles(Role.ADMIN, Role.SELLER)
+   // @UseGuards(JwtAuthGuard)
+   // @Roles(Role.ADMIN, Role.SELLER)
     @Get(':id')
     async getProductById(@Param('id', ParseIntPipe) id: number): Promise<Product> {
         return this.productService.getProductById(id);
     }
 
     // Create product with validation - FIXED: Uses JWT authentication
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard, SellerVerifiedGuard)
     @Roles(Role.ADMIN, Role.SELLER)
     @Post('create')
     @UsePipes(ValidationPipe)
@@ -52,11 +134,11 @@ export class ProductController {
         @Body() createProductDto: CreateProductDto,
         @CurrentUser() user: any
     ): Promise<Product> {
-        return this.productService.createProductWithAuth(createProductDto, user);
+        return this.productService.createProductWithAuth(createProductDto,user); //user
     }
 
     // NEW: Get products for current authenticated user
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard, SellerVerifiedGuard)
     @Roles(Role.ADMIN, Role.SELLER)
     @Get('my-products')
     async getMyProducts(@CurrentUser() user: any): Promise<Product[]> {
@@ -81,7 +163,7 @@ export class ProductController {
     }
 
     // NEW: Update product with user verification
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard, SellerVerifiedGuard)
     @Roles(Role.ADMIN, Role.SELLER)
     @Put('my-product/:id')
     @UsePipes(ValidationPipe)
@@ -99,7 +181,7 @@ export class ProductController {
     }
 
     // NEW: Delete my product
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard, SellerVerifiedGuard)
     @Roles(Role.ADMIN, Role.SELLER)
     @Delete('my-product/:id')
     async deleteMyProduct(
@@ -219,12 +301,18 @@ export class ProductController {
     async serveProductImage(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
         try {
             const product = await this.productService.getProductById(id);
-            if (!product.imageUrl) {
+            if (!product.images || product.images.length === 0) {
                 return res.status(404).json({ error: 'No image for this product' });
             }
             
+            // Get the first active image
+            const activeImage = product.images.find(img => img.isActive);
+            if (!activeImage) {
+                return res.status(404).json({ error: 'No active image for this product' });
+            }
+            
             // Extract filename from imageUrl
-            const filename = product.imageUrl.replace('image/', '');
+            const filename = activeImage.imageUrl.replace(/.*\//, ''); // Get filename from URL
             const imagePath = path.join(__dirname, '..', '..', 'image', filename);
             
             if (fs.existsSync(imagePath)) {
@@ -260,24 +348,18 @@ export class ProductController {
     async servePicture(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
         try {
             const product = await this.productService.getProductById(id);
-            if (!product.imageUrl) {
+            if (!product.images || product.images.length === 0) {
                 return res.status(404).json({ error: 'No image for this product' });
             }
             
-            // Map product ID to actual image file
-            const imageMap = {
-                1: '1756051424563-Screenshot from 2025-06-24 11-04-25.png',
-                2: '1756044289456-Screenshot from 2025-06-24 01-51-42.png',
-                3: '1755224860078-Screenshot from 2025-06-24 01-51-42.png',
-                4: '1756044289456-Screenshot from 2025-06-24 01-51-42.png',
-                5: '1756051424563-Screenshot from 2025-06-24 11-04-25.png'
-            };
-            
-            const filename = imageMap[id];
-            if (!filename) {
-                return res.status(404).json({ error: 'No image mapped for this product ID' });
+            // Get the first active image
+            const activeImage = product.images.find(img => img.isActive);
+            if (!activeImage) {
+                return res.status(404).json({ error: 'No active image for this product' });
             }
             
+            // Extract filename from imageUrl
+            const filename = activeImage.imageUrl.replace(/.*\//, ''); // Get filename from URL
             const imagePath = path.join(__dirname, '..', '..', 'image', filename);
             
             if (fs.existsSync(imagePath)) {
@@ -341,5 +423,29 @@ export class ProductController {
     async getTestProducts(): Promise<Product[]> {
         return this.productService.getAllProducts();
     }
-    
+
+    // NEW: Get all products with their images
+    @Get('with-images')
+    async getAllProductsWithImages(): Promise<Product[]> {
+        return this.productService.getAllProductsWithImages();
+    }
+
+    // NEW: Get specific product with its images
+    @Get(':id/with-images')
+    async getProductWithImages(@Param('id', ParseIntPipe) id: number): Promise<Product> {
+        return this.productService.getProductWithImages(id);
+    }
+
+    // NEW: Get all uploaded image filenames
+    @Get('images/list')
+    async getUploadedImages(): Promise<{ images: string[], count: number }> {
+        return this.productService.getUploadedImagesList();
+    }
+
+    // NEW: Get product images by product ID
+    @Get(':id/images')
+    async getProductImages(@Param('id', ParseIntPipe) productId: number) {
+        return this.productService.getProductImages(productId);
+    }
+
 }

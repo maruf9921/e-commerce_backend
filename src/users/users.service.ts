@@ -19,7 +19,7 @@ export class UsersService {
 
   async getAllUsers(): Promise<Partial<User>[]> {
     const users = await this.userRepository.find({
-      select: ['id', 'username', 'email', 'phone', 'role', 'isActive', 'createdAt', 'updatedAt']
+      select: ['id', 'username', 'email', 'phone', 'role', 'isActive', 'isVerified', 'createdAt', 'updatedAt']
     });
     return users;
   }
@@ -27,7 +27,7 @@ export class UsersService {
   async getUserById(id: number): Promise<Partial<User>> {
     const user = await this.userRepository.findOne({
       where: { id },
-      select: ['id', 'username', 'email', 'phone', 'role', 'isActive', 'createdAt', 'updatedAt']
+      select: ['id', 'username', 'email', 'phone', 'role', 'isActive', 'isVerified', 'createdAt', 'updatedAt']
     });
 
     if (!user) {
@@ -51,7 +51,7 @@ export class UsersService {
   }
 
   async createUser(createUserDto: CreateUserDto): Promise<Partial<User>> {
-    const { username, email, password, phone, role = Role.USER } = createUserDto;
+    const { username, fullName, email, password, phone, role = Role.USER } = createUserDto;
 
     // Check if username exists
     const existingUsername = await this.userRepository.findOne({ where: { username } });
@@ -69,6 +69,7 @@ export class UsersService {
 
     const user = this.userRepository.create({
       username,
+      fullName,
       email,
       password: hashedPassword,
       phone,
@@ -80,6 +81,87 @@ export class UsersService {
 
     const { password: _, ...result } = user;
     return result;
+  }
+
+  // Seller registration with pending verification
+  async registerSeller(createUserDto: CreateUserDto): Promise<{ message: string; user: Partial<User> }> {
+    const sellerData = { ...createUserDto, role: Role.SELLER };
+    const user = await this.createUser(sellerData);
+    
+    return {
+      message: 'Seller registration successful. Your account is pending admin verification.',
+      user
+    };
+  }
+
+  // Get all pending sellers for admin review
+  async findPendingSellers(): Promise<Partial<User>[]> {
+    const pendingSellers = await this.userRepository.find({
+      where: { 
+        role: Role.SELLER, 
+        isVerified: false,
+        isActive: true 
+      },
+      select: ['id', 'username', 'email', 'phone', 'fullName', 'sellerId', 'role', 'isVerified', 'createdAt']
+    });
+    return pendingSellers;
+  }
+
+  // Get all verified sellers
+  async findVerifiedSellers(): Promise<Partial<User>[]> {
+    const verifiedSellers = await this.userRepository.find({
+      where: { 
+        role: Role.SELLER, 
+        isVerified: true,
+        isActive: true 
+      },
+      select: ['id', 'username', 'email', 'phone', 'fullName', 'sellerId', 'role', 'isVerified', 'createdAt']
+    });
+    return verifiedSellers;
+  }
+
+  // Verify a seller by ID
+  async verifySeller(sellerId: number): Promise<{ message: string; seller: Partial<User> }> {
+    const seller = await this.userRepository.findOne({ 
+      where: { id: sellerId, role: Role.SELLER } 
+    });
+    
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    if (seller.isVerified) {
+      throw new ConflictException('Seller is already verified');
+    }
+
+    seller.isVerified = true;
+    await this.userRepository.save(seller);
+
+    const { password, ...result } = seller;
+    return {
+      message: `Seller '${seller.username}' has been successfully verified`,
+      seller: result
+    };
+  }
+
+  // Reject a seller (deactivate or delete)
+  async rejectSeller(sellerId: number, deleteAccount: boolean = false): Promise<{ message: string }> {
+    const seller = await this.userRepository.findOne({ 
+      where: { id: sellerId, role: Role.SELLER } 
+    });
+    
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    if (deleteAccount) {
+      await this.userRepository.remove(seller);
+      return { message: `Seller '${seller.username}' has been permanently deleted` };
+    } else {
+      seller.isActive = false;
+      await this.userRepository.save(seller);
+      return { message: `Seller '${seller.username}' has been deactivated` };
+    }
   }
 
   async updateUser(id: number, updateUserDto: UpdateUserDto): Promise<Partial<User>> {

@@ -46,6 +46,13 @@ export class UsersController {
     return await this.usersService.createUser(createUserDto);
   }
 
+  // Seller registration endpoint
+  @Post('register-seller')
+  @UsePipes(ValidationPipe)
+  async registerSeller(@Body() createUserDto: CreateUserDto) {
+    return await this.usersService.registerSeller(createUserDto);
+  }
+
   // User login endpoint (REMOVED GUARD - Public access needed!)
   @Post('login')
   @UsePipes(ValidationPipe)

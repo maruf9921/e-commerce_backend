@@ -64,6 +64,13 @@ export class User {
     })
     isActive: boolean;
 
+    // Verification status for sellers (default false for sellers, true for users/admins)
+    @Column({ 
+        type: 'boolean',
+        default: false 
+    })
+    isVerified: boolean;
+
     @CreateDateColumn({
         type: 'timestamp',
         default: () => 'CURRENT_TIMESTAMP',
@@ -94,11 +101,23 @@ export class User {
             this.sellerId = `SELLER_${timestamp}_${randomNum}`;
         }
         // For non-sellers, sellerId remains undefined (nullable)
+        
+        // Set verification status based on role
+        if (this.role === Role.SELLER) {
+            this.isVerified = false; // Sellers need verification
+        } else {
+            this.isVerified = true; // Users and admins are auto-verified
+        }
     }
 
     // Helper method to check if user is a seller
     isSeller(): boolean {
         return this.role === Role.SELLER;
+    }
+
+    // Helper method to check if seller is verified
+    isVerifiedSeller(): boolean {
+        return this.role === Role.SELLER && this.isVerified;
     }
 
     // Helper method to get seller identifier

@@ -1,6 +1,15 @@
 
 import { User } from '../../users/entities/unified-user.entity';
-import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { ProductImage } from './image.entity';
+import { 
+    Entity, 
+    PrimaryGeneratedColumn, 
+    Column, 
+    UpdateDateColumn, 
+    ManyToOne, 
+    JoinColumn,
+    OneToMany
+} from 'typeorm';
 
 @Entity('products')
 export class Product {
@@ -16,11 +25,17 @@ export class Product {
     @Column('decimal', { precision: 10, scale: 2 })
     price: number;
 
+    @Column({ type: 'int', default: 0 })
+    stockQuantity: number;
+
+    @Column({ nullable: true })
+    category?: string;
+
     @Column({ default: true })
     isActive: boolean;
 
     @Column({ nullable: true })
-    imageUrl?: string;
+    slug?: string;
 
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     createdAt: Date;
@@ -31,6 +46,13 @@ export class Product {
     // Use userId as foreign key for seller
     @Column({ type: 'int', name: 'userId', nullable: false })
     userId: number;
+
+    // ONE-TO-MANY: One product can have many images
+    @OneToMany(() => ProductImage, (image) => image.product, {
+        cascade: true,
+        eager: false
+    })
+    images: ProductImage[];
 
     //MANY-TO-ONE: Many products belong to one user (seller)
     @ManyToOne(() => User, (user) => user.products, {

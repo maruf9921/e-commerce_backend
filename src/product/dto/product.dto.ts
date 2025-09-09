@@ -1,4 +1,6 @@
-import { IsNotEmpty, IsPositive, IsString, MaxLength, IsOptional, IsBoolean, Min } from 'class-validator';
+import { IsNotEmpty, IsPositive, IsString, MaxLength, IsOptional, IsBoolean, Min, ValidateNested, IsArray } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
+import { CreateProductImageDto } from './image.dto';
 
 export class ProductDto {
     @IsString()
@@ -25,8 +27,10 @@ export class ProductDto {
     isActive?: boolean;
 
     @IsOptional()
-    @IsString()
-    imageUrl?: string; 
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => CreateProductImageDto)
+    images?: CreateProductImageDto[];
 }
 
 // NEW: DTO for creating products without userId (extracted from JWT)
@@ -41,18 +45,57 @@ export class CreateProductDto {
     @MaxLength(1200, { message: 'Description must not exceed 1200 characters' })
     description: string;
 
+    @Transform(({ value }) => {
+        if (typeof value === 'string') {
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? value : parsed;
+        }
+        return value;
+    })
     @IsNotEmpty({ message: 'Price is required' })
     @IsPositive({ message: 'Price must be a positive number' })
     @Min(0.01, { message: 'Price must be at least 0.01' })
     price: number;
 
+    @Transform(({ value }) => {
+        if (typeof value === 'string') {
+            const parsed = parseInt(value);
+            return isNaN(parsed) ? value : parsed;
+        }
+        return value;
+    })
+    @IsOptional()
+    @IsPositive({ message: 'Stock quantity must be a positive number' })
+    @Min(0, { message: 'Stock quantity must be at least 0' })
+    stockQuantity?: number;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(50, { message: 'Category must not exceed 50 characters' })
+    category?: string;
+
+    @Transform(({ value }) => {
+        console.log('🔄 Transform isActive input:', value, typeof value);
+        if (typeof value === 'string') {
+            const result = value === 'true' || value === '1' || value.toLowerCase() === 'true';
+            console.log('🔄 Transform isActive result:', result);
+            return result;
+        }
+        if (typeof value === 'boolean') {
+            return value;
+        }
+        // Default to true if undefined or null
+        return value != null ? Boolean(value) : true;
+    })
     @IsOptional()
     @IsBoolean()
     isActive?: boolean;
 
     @IsOptional()
-    @IsString()
-    imageUrl?: string; 
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => CreateProductImageDto)
+    images?: CreateProductImageDto[];
 }
 
 export class UpdateProductDto {
@@ -75,7 +118,7 @@ export class UpdateProductDto {
     @IsBoolean()
     isActive?: boolean;
 
-    @IsOptional()
+    
     @IsString()
     imageUrl?: string;
 }

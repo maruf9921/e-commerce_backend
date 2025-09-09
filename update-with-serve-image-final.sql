@@ -18,3 +18,4 @@ WHERE id = 2;
 UPDATE products 
 SET "imageUrl" = 'http://localhost:4050/products/serve-image/1756051424563-Screenshot from 2025-06-24 11-04-25.png'
 WHERE id = 1;
+
