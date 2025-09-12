@@ -7,8 +7,8 @@ import { Role } from "../users/entities/role.enum";
 import { VerifySellerDto, RejectSellerDto } from "./dto/seller-verification.dto";
 
 @Controller('admin')
-//@UseGuards(JwtAuthGuard, RolesGuard)
-//@Roles(Role.ADMIN)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
 export class AdminController {
     constructor(private readonly adminService: AdminService) {}
   

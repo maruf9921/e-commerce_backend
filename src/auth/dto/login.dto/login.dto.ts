@@ -1,20 +1,13 @@
-import { IsEmail, IsNotEmpty, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class LoginDto {
-    @IsNotEmpty({ message: 'Username is required' })
-    @IsString({ message: 'Username must be a string' })
-    @MinLength(3, { message: 'Username must be at least 3 characters long' })
-    @MaxLength(100, { message: 'Username cannot exceed 100 characters' })
-   
-    username: string;
+  @IsNotEmpty({ message: 'Email or username is required' })
+  @IsString({ message: 'Email or username must be a string' })
+  @MinLength(3, { message: 'Email or username must be at least 3 characters long' })
+  email: string; // This field will accept both email and username
 
-  @IsNotEmpty()
-  @MinLength(10, {
-    message: 'Password must be at least 10 characters long!',
-  })
-  @Matches(/[a-z]/, {
-    message: 'Password must contain at least one lowercase letter!',
-  })
-  @IsString()
+  @IsNotEmpty({ message: 'Password is required' })
+  @IsString({ message: 'Password must be a string' })
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string;
 }

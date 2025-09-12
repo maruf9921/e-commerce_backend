@@ -15,6 +15,8 @@ import { MaillerController } from './mailler/mailler.controller';
 import { Product } from './product/entities/product.entity';
 import { ProductImage } from './product/entities/image.entity';
 import { User } from './users/entities/unified-user.entity';
+import { RefreshToken } from './auth/entities/refresh-token.entity';
+import { LoginLog } from './auth/entities/login-log.entity';
 
 @Module({
   imports: [
@@ -29,7 +31,7 @@ import { User } from './users/entities/unified-user.entity';
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || 'e_commerce',
-      entities: [User, Product, ProductImage],
+      entities: [User, Product, ProductImage, RefreshToken, LoginLog],
       synchronize: false,
       logging: true,
     }),

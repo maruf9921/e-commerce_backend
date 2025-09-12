@@ -5,12 +5,16 @@ import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { config } from 'dotenv';
+import * as cookieParser from 'cookie-parser';
 config()
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   
   const configService = app.get(ConfigService);
+  
+  // Add cookie parser middleware
+  app.use(cookieParser());
   
   app.useGlobalPipes(new ValidationPipe());
   
@@ -21,6 +25,7 @@ async function bootstrap() {
         'http://localhost:3000', // Next.js default port
         'http://localhost:4050', // Your frontend port
         'http://localhost:4051', // Alternative frontend port
+        'http://localhost:7000', // Current frontend port
       ];
   
   app.enableCors({

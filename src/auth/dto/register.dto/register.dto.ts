@@ -1,42 +1,33 @@
-import { IsEmail, IsNotEmpty, IsString, Matches, MaxLength, MinLength, IsOptional, IsEnum } from "class-validator";
+import { IsEmail, IsNotEmpty, IsString, Matches, MaxLength, MinLength, IsOptional, IsEnum, IsIn } from "class-validator";
 import { Role } from "../../../users/entities/role.enum";
 
 export class RegisterDto {
-     @IsString()
-      @MinLength(3, { message: 'Username must be at least 3 characters long' })
-      @MaxLength(100, { message: 'Username cannot exceed 100 characters' })
-     
-      username: string;
+  @IsNotEmpty({ message: 'Username is required' })
+  @IsString({ message: 'Username must be a string' })
+  @MinLength(3, { message: 'Username must be at least 3 characters long' })
+  @MaxLength(100, { message: 'Username cannot exceed 100 characters' })
+  username: string;
 
+  @IsNotEmpty({ message: 'Email is required' })
+  @IsEmail({}, { message: 'Invalid email address' })
+  email: string;
 
-    @IsNotEmpty()
-      @MinLength(10, {
-        message: 'Password must be at least 10 characters long!',
-      })
-      @Matches(/[a-z]/, {
-        message: 'Password must contain at least one lowercase letter!',
-      })
-      @IsString()
-      password: string;
+  @IsNotEmpty({ message: 'Password is required' })
+  @IsString({ message: 'Password must be a string' })
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
+  password: string;
 
-    @IsNotEmpty()
-      @Matches(/^01\d+$/, {
-        message: 'Phone number field must start with 01!',
-      })
-      @IsString()
-      phone: string;
+  @IsOptional()
+  @IsString({ message: 'Phone must be a string' })
+  @Matches(/^[0-9+\-\s()]+$/, { message: 'Invalid phone number format' })
+  phone?: string;
 
-      @IsNotEmpty()
-      @IsEmail({}, { message: 'Invalid email address' })
-      email: string;
+  @IsOptional()
+  @IsString({ message: 'Full name must be a string' })
+  @MaxLength(150, { message: 'Full name cannot exceed 150 characters' })
+  fullName?: string;
 
-      @IsOptional()
-      @IsString()
-      @MaxLength(150, { message: 'Full name cannot exceed 150 characters' })
-      fullName?: string;
-
-      @IsOptional()
-      @IsEnum(Role, { message: 'Role must be one of: USER, ADMIN, SELLER' })
-      role?: Role;
-
+  @IsNotEmpty({ message: 'Role is required' })
+  @IsIn(['user', 'seller'], { message: 'Role must be either "user" or "seller"' })
+  role: string;
 }
