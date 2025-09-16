@@ -4,7 +4,7 @@ import {
   IsNotEmpty, 
   IsOptional, 
   IsBoolean, 
-  IsEnum, 
+  IsIn,
   MinLength, 
   MaxLength, 
   Matches 
@@ -44,8 +44,8 @@ export class CreateUserDto {
   phone: string;
 
   @IsOptional()
-  @IsEnum(Role, { message: 'Role must be one of: user, admin, seller' })
-  role?: Role;
+  @IsIn(['USER', 'ADMIN', 'SELLER'], { message: 'Role must be one of: USER, ADMIN, SELLER' })
+  role?: string;
 }
 
 export class UpdateUserDto {
@@ -70,8 +70,8 @@ export class UpdateUserDto {
   phone?: string;
 
   @IsOptional()
-  @IsEnum(Role, { message: 'Role must be one of: user, admin, seller' })
-  role?: Role;
+  @IsIn(['USER', 'ADMIN', 'SELLER'], { message: 'Role must be one of: USER, ADMIN, SELLER' })
+  role?: string;
 
   @IsOptional()
   @IsBoolean()

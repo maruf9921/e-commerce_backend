@@ -40,8 +40,9 @@ export class User {
     @Column({
         type: 'varchar',
         length: 15,
+        nullable: true,
     })
-    phone: string;
+    phone?: string;
 
     // For sellers: full name, for users: can be display name
     @Column({

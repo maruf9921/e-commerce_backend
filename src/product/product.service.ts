@@ -2,7 +2,7 @@ import { Role } from '../users/entities/role.enum';
 import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { Product } from './entities/product.entity';
 import { ProductImage } from './entities/image.entity';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, In } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ProductDto, UpdateProductDto } from './dto/product.dto';
 // Removed Seller import, use User for seller logic
@@ -209,7 +209,7 @@ export class ProductService {
         if (user.role === Role.ADMIN) {
             return await this.productRepository.find({
                 where: { userId: user.id }, // Admin's products using primary key
-                relations: ['seller'],
+                relations: ['seller', 'images'],
                 order: {
                     createdAt: 'DESC'
                 }
@@ -219,7 +219,7 @@ export class ProductService {
         // For seller users, return only their products (using primary key)
         return await this.productRepository.find({
             where: { userId: user.id }, // Seller's products using primary key
-            relations: ['seller'],
+            relations: ['seller', 'images'],
             order: {
                 createdAt: 'DESC'
             }
@@ -451,6 +451,71 @@ export class ProductService {
     });
   }
 
+  // NEW: Get paginated products with images for main page
+  async getPaginatedProductsWithImages(page: number = 1, limit: number = 12): Promise<{
+    products: Product[],
+    totalCount: number,
+    totalPages: number,
+    currentPage: number,
+    hasNextPage: boolean,
+    hasPrevPage: boolean
+  }> {
+    const skip = (page - 1) * limit;
+    
+    const [products, totalCount] = await this.productRepository.findAndCount({
+      relations: ['seller', 'images'],
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        stockQuantity: true,
+        category: true,
+        isActive: true,
+        slug: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        seller: {
+          id: true,
+          username: true,
+          phone: true,
+          isActive: true
+        },
+        images: {
+          id: true,
+          imageUrl: true,
+          altText: true,
+          isActive: true,
+          sortOrder: true,
+          createdAt: true
+        }
+      },
+      where: {
+        isActive: true
+      },
+      order: {
+        createdAt: 'DESC',
+        images: {
+          sortOrder: 'ASC'
+        }
+      },
+      skip,
+      take: limit
+    });
+
+    const totalPages = Math.ceil(totalCount / limit);
+    
+    return {
+      products,
+      totalCount,
+      totalPages,
+      currentPage: page,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1
+    };
+  }
+
   // NEW: Get specific product with its images
   async getProductWithImages(id: number): Promise<Product> {
     const product = await this.productRepository.findOne({
@@ -557,6 +622,230 @@ export class ProductService {
       productName: product.name,
       images: product.images.sort((a, b) => a.sortOrder - b.sortOrder),
       imageCount: product.images.length
+    };
+  }
+
+  // ENHANCED SELLER DASHBOARD METHODS
+
+  // Get seller dashboard analytics
+  async getSellerDashboardAnalytics(sellerId: number) {
+    const products = await this.productRepository.find({
+      where: { userId: sellerId },
+      relations: ['images']
+    });
+
+    const totalProducts = products.length;
+    const activeProducts = products.filter(p => p.isActive).length;
+    const inactiveProducts = totalProducts - activeProducts;
+    const totalStock = products.reduce((sum, p) => sum + (p.stockQuantity || 0), 0);
+    const lowStockProducts = products.filter(p => (p.stockQuantity || 0) < 10).length;
+    
+    // Calculate total product value
+    const totalValue = products.reduce((sum, p) => sum + (p.price * (p.stockQuantity || 0)), 0);
+
+    return {
+      totalProducts,
+      activeProducts,
+      inactiveProducts,
+      lowStockProducts,
+      totalStock,
+      totalValue,
+      averagePrice: totalProducts > 0 ? products.reduce((sum, p) => sum + p.price, 0) / totalProducts : 0,
+      productsWithImages: products.filter(p => p.images && p.images.length > 0).length,
+      productsWithoutImages: products.filter(p => !p.images || p.images.length === 0).length
+    };
+  }
+
+  // Get seller's top performing products
+  async getSellerTopProducts(sellerId: number, limit: number = 10) {
+    return await this.productRepository.find({
+      where: { 
+        userId: sellerId,
+        isActive: true
+      },
+      relations: ['images'],
+      order: {
+        stockQuantity: 'DESC',
+        price: 'DESC'
+      },
+      take: limit
+    });
+  }
+
+  // Get seller's low stock products
+  async getSellerLowStockProducts(sellerId: number, threshold: number = 10) {
+    return await this.productRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.images', 'images')
+      .where('product.userId = :sellerId', { sellerId })
+      .andWhere('product.stockQuantity <= :threshold', { threshold })
+      .andWhere('product.isActive = true')
+      .orderBy('product.stockQuantity', 'ASC')
+      .getMany();
+  }
+
+  // Bulk update products (for seller dashboard)
+  async bulkUpdateProducts(sellerId: number, updates: { productIds: number[], updateData: Partial<Product> }) {
+    const { productIds, updateData } = updates;
+
+    // Verify all products belong to the seller
+    const products = await this.productRepository.find({
+      where: { 
+        id: In(productIds),
+        userId: sellerId 
+      }
+    });
+
+    if (products.length !== productIds.length) {
+      throw new UnauthorizedException('Some products do not belong to this seller');
+    }
+
+    // Update products
+    await this.productRepository.update(
+      { 
+        id: In(productIds),
+        userId: sellerId 
+      },
+      updateData
+    );
+
+    return {
+      message: `Successfully updated ${products.length} products`,
+      updatedProducts: products.length
+    };
+  }
+
+  // Add multiple images to a product
+  async addProductImages(productId: number, sellerId: number, imageData: Array<{ imageUrl: string, altText?: string, sortOrder?: number }>) {
+    const product = await this.productRepository.findOne({
+      where: { id: productId, userId: sellerId },
+      relations: ['images']
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found or does not belong to this seller');
+    }
+
+    const nextSortOrder = product.images.length;
+    
+    const newImages = imageData.map((imgData, index) => 
+      this.productImageRepository.create({
+        ...imgData,
+        productId: productId,
+        sortOrder: imgData.sortOrder ?? nextSortOrder + index,
+        isActive: true
+      })
+    );
+
+    const savedImages = await this.productImageRepository.save(newImages);
+
+    return {
+      message: `Added ${savedImages.length} images to product`,
+      productId,
+      addedImages: savedImages
+    };
+  }
+
+  // Update product image order
+  async updateImageOrder(productId: number, sellerId: number, imageOrderData: Array<{ imageId: number, sortOrder: number }>) {
+    const product = await this.productRepository.findOne({
+      where: { id: productId, userId: sellerId },
+      relations: ['images']
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found or does not belong to this seller');
+    }
+
+    for (const orderData of imageOrderData) {
+      await this.productImageRepository.update(
+        { 
+          id: orderData.imageId,
+          productId: productId 
+        },
+        { sortOrder: orderData.sortOrder }
+      );
+    }
+
+    return {
+      message: 'Image order updated successfully',
+      productId,
+      updatedImages: imageOrderData.length
+    };
+  }
+
+  // Delete product image
+  async deleteProductImage(productId: number, imageId: number, sellerId: number) {
+    const product = await this.productRepository.findOne({
+      where: { id: productId, userId: sellerId }
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found or does not belong to this seller');
+    }
+
+    const image = await this.productImageRepository.findOne({
+      where: { id: imageId, productId: productId }
+    });
+
+    if (!image) {
+      throw new NotFoundException('Image not found');
+    }
+
+    await this.productImageRepository.remove(image);
+
+    return {
+      message: 'Image deleted successfully',
+      deletedImageId: imageId
+    };
+  }
+
+  // Get product categories with counts (for seller dashboard)
+  async getSellerProductCategories(sellerId: number) {
+    const categories = await this.productRepository
+      .createQueryBuilder('product')
+      .select('product.category', 'category')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('SUM(product.stockQuantity)', 'totalStock')
+      .addSelect('AVG(product.price)', 'averagePrice')
+      .where('product.userId = :sellerId', { sellerId })
+      .groupBy('product.category')
+      .orderBy('count', 'DESC')
+      .getRawMany();
+
+    return categories.map(cat => ({
+      category: cat.category || 'Uncategorized',
+      count: parseInt(cat.count),
+      totalStock: parseInt(cat.totalStock) || 0,
+      averagePrice: parseFloat(cat.averagePrice) || 0
+    }));
+  }
+
+  // Update product stock with validation
+  async updateProductStock(productId: number, sellerId: number, newStock: number) {
+    if (newStock < 0) {
+      throw new ConflictException('Stock quantity cannot be negative');
+    }
+
+    const product = await this.productRepository.findOne({
+      where: { id: productId, userId: sellerId }
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found or does not belong to this seller');
+    }
+
+    const oldStock = product.stockQuantity || 0;
+    product.stockQuantity = newStock;
+    
+    await this.productRepository.save(product);
+
+    return {
+      message: 'Stock updated successfully',
+      productId,
+      oldStock,
+      newStock,
+      difference: newStock - oldStock
     };
   }
 }

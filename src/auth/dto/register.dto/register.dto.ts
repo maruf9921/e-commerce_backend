@@ -28,6 +28,6 @@ export class RegisterDto {
   fullName?: string;
 
   @IsNotEmpty({ message: 'Role is required' })
-  @IsIn(['user', 'seller'], { message: 'Role must be either "user" or "seller"' })
+  @IsIn(['USER', 'ADMIN', 'SELLER'], { message: 'Role must be one of: USER, ADMIN, SELLER' })
   role: string;
 }

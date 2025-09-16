@@ -48,9 +48,9 @@ export class CreateProductDto {
     @Transform(({ value }) => {
         if (typeof value === 'string') {
             const parsed = parseFloat(value);
-            return isNaN(parsed) ? value : parsed;
+            return isNaN(parsed) ? 0 : parsed;
         }
-        return value;
+        return value || 0;
     })
     @IsNotEmpty({ message: 'Price is required' })
     @IsPositive({ message: 'Price must be a positive number' })
@@ -60,9 +60,9 @@ export class CreateProductDto {
     @Transform(({ value }) => {
         if (typeof value === 'string') {
             const parsed = parseInt(value);
-            return isNaN(parsed) ? value : parsed;
+            return isNaN(parsed) ? 0 : parsed;
         }
-        return value;
+        return value || 0;
     })
     @IsOptional()
     @IsPositive({ message: 'Stock quantity must be a positive number' })

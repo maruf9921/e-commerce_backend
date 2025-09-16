@@ -1,12 +1,120 @@
-# E-Commerce Backend API
+# 🛍️ E-Commerce Backend Platform
 
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+A comprehensive, production-ready e-commerce backend built with **NestJS**, featuring complete order management, seller dashboard, financial tracking, real-time notifications, and professional email system.
+
+## ✨ Key Features
+
+### 🔐 Advanced Authentication System
+- **JWT-based authentication** with access & refresh tokens
+- **Role-based access control** (USER, SELLER, ADMIN)
+- **Protected routes** with authentication guards
+- **Email verification** and password reset functionality
+- **Secure token storage** with httpOnly cookies
+
+### 🛒 Complete Order Management
+- **Full order lifecycle** (pending → confirmed → shipped → delivered)
+- **Automatic email notifications** for all order events
+- **Real-time order updates** via Pusher.js WebSockets
+- **Order tracking** with tracking numbers
+- **Order cancellation** and refund support
+- **Comprehensive order history** for all user types
+
+### 💰 Financial Management System
+- **Automated earnings tracking** for sellers
+- **Payout request system** with admin approval
+- **Detailed financial records** with transaction history
+- **Revenue analytics** with period-based reporting
+- **Platform commission** handling and calculations
+
+### 🔔 Real-time Notification System
+- **Pusher.js WebSocket integration** for live updates
+- **Multi-channel notifications**:
+  - User-specific notifications
+  - Role-based announcements
+  - System-wide broadcasts
+- **Notification history** with read/unread tracking
+- **Event-driven architecture** for automated notifications
+
+### 📧 Professional Email System
+- **10+ email templates** for all e-commerce scenarios:
+  - Order confirmations and updates
+  - Seller notifications
+  - User messaging system
+  - Verification and password reset
+  - Payout notifications
+- **Automatic email integration** with order events
+- **Professional HTML templates** with responsive design
+- **Role-based email endpoints** with comprehensive validation
+
+### 🏪 Advanced Seller Dashboard Backend
+- **Product Management**: Complete CRUD with image upload
+- **Order Management**: Status updates and order tracking
+- **Financial Dashboard**: Earnings, payouts, and analytics
+- **Performance Analytics**: Sales metrics and reporting
+
+### 🛡️ Admin Panel Backend
+- **User Management**: Comprehensive user control
+- **Seller Verification**: Approval workflow system
+- **Platform Analytics**: Revenue and growth metrics
+- **System Management**: Platform-wide controls
+
+## 🏗️ Technical Architecture
+
+### Core Technologies
+- **Framework**: NestJS with TypeScript
+- **Database**: PostgreSQL with TypeORM
+- **Authentication**: JWT with Guards and Strategies
+- **Real-time**: Pusher.js WebSocket integration
+- **Email**: Nodemailer with professional templates
+- **File Upload**: Multer with image processing
+- **Validation**: class-validator with custom pipes
+
+### Project Structure
+```
+src/
+├── auth/                    # JWT authentication & role-based guards
+│   ├── jwt-auth/           # JWT authentication guards
+│   ├── roles/              # Role-based access control
+│   └── dto/                # Authentication data transfer objects
+├── users/                   # User management system
+│   ├── entities/           # User entity definitions
+│   ├── dto/                # User data transfer objects
+│   └── pipes/              # User validation pipes
+├── seller/                  # Seller operations & dashboard
+│   ├── entities/           # Seller entity definitions
+│   ├── dto/                # Seller data transfer objects
+│   └── Files/              # Seller file management
+├── product/                 # Product management system
+│   ├── entities/           # Product entity definitions
+│   ├── dto/                # Product data transfer objects
+│   └── image-upload/       # Product image handling
+├── order/                   # Complete order management
+│   ├── entities/           # Order and OrderItem entities
+│   ├── dto/                # Order data transfer objects
+│   └── guards/             # Order-specific guards
+├── financial/               # Financial tracking system
+│   ├── entities/           # Financial record entities
+│   ├── dto/                # Financial data transfer objects
+│   └── services/           # Financial calculation services
+├── notification/            # Real-time notification system
+│   ├── services/           # Pusher.js integration
+│   └── dto/                # Notification data transfer objects
+├── mailler/                # Professional email system
+│   ├── templates/          # HTML email templates
+│   ├── services/           # Email sending services
+│   └── dto/                # Email data transfer objects
+├── admin/                   # Admin panel operations
+│   ├── services/           # Admin-specific services
+│   └── dto/                # Admin data transfer objects
+└── migration/               # Database migrations
+    ├── CreateUserProductRelationship.ts
+    ├── AddAdminRole.ts
+    └── FixSellerIdNullable.ts
+```
 
 ## Description
 
-A robust e-commerce backend API built with NestJS framework, TypeScript, and advanced validation features. This project includes modules for Admin, Customer, and Seller management with comprehensive CRUD operations, file upload capabilities, and data validation using DTOs and Pipes.
+A comprehensive e-commerce platform with advanced authentication, order management, real-time features, and professional email integration.
 
 ## Features
 

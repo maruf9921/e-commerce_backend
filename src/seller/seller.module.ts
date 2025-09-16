@@ -5,9 +5,11 @@ import { SellerService } from './seller.service';
 import { User } from '../users/entities/unified-user.entity';
 import { UsersModule } from '../users/users.module';
 import { Product } from '../product/entities/product.entity';
+import { Order } from '../order/entities/order.entity';
+import { FinancialRecord } from '../order/entities/financial-record.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Product]), UsersModule],
+  imports: [TypeOrmModule.forFeature([User, Product, Order, FinancialRecord]), UsersModule],
   controllers: [SellerController],
   providers: [SellerService],
   exports: [SellerService],

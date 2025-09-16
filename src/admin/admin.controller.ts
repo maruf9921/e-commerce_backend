@@ -1,5 +1,7 @@
-import { Body, Controller, Delete, Get, Put, Param, Post, Query, Patch, UseGuards, UsePipes, ValidationPipe } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Put, Param, Post, Query, Patch, UseGuards, UsePipes, ValidationPipe, Req } from "@nestjs/common";
 import { AdminService } from "./admin.service";
+import { OrderService } from "../order/order.service";
+import { UpdateOrderStatusDto } from "../order/dto/update-order.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles/roles.guard";
 import { Roles } from "../auth/roles.decorator/roles.decorator";
@@ -10,7 +12,10 @@ import { VerifySellerDto, RejectSellerDto } from "./dto/seller-verification.dto"
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
 export class AdminController {
-    constructor(private readonly adminService: AdminService) {}
+    constructor(
+        private readonly adminService: AdminService,
+        private readonly orderService: OrderService
+    ) {}
   
     @Get()
     getAdminInfo(): string {
@@ -78,5 +83,33 @@ export class AdminController {
         Number(sellerId), 
         rejectDto.deleteAccount || false
       );
+    }
+
+    // Admin order management endpoints
+    @Get('orders')
+    async getOrders(
+        @Query('page') page: number = 1,
+        @Query('limit') limit: number = 10,
+        @Query('status') status: string = '',
+        @Req() req: any
+    ) {
+        const adminUser = { 
+            id: req.user.id, 
+            role: Role.ADMIN 
+        };
+        return await this.orderService.findAll(adminUser, page, limit);
+    }
+
+    @Patch('orders/:id/status')
+    async updateOrderStatus(
+        @Param('id') id: number,
+        @Body() updateDto: UpdateOrderStatusDto,
+        @Req() req: any
+    ) {
+        const adminUser = { 
+            id: req.user.id, 
+            role: Role.ADMIN 
+        };
+        return await this.orderService.updateStatus(id, updateDto, adminUser);
     }
 }

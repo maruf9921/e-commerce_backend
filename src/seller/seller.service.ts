@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike, Like } from 'typeorm';
+import { Repository, ILike, Like, MoreThan, Between } from 'typeorm';
 import { User } from '../users/entities/unified-user.entity';
 import { Role } from '../users/entities/role.enum';
 import { SellerDto } from './dto/seller.dto';
@@ -8,6 +8,9 @@ import * as bcrypt from 'bcrypt';
 import { Product } from '../product/entities/product.entity';
 import { ProductDto } from 'src/product/dto/product.dto';
 import { CreateProductDto } from 'src/product/dto/product.dto';
+import { Order } from '../order/entities/order.entity';
+import { FinancialRecord } from '../order/entities/financial-record.entity';
+import { OrderStatus, FinancialStatus } from '../order/entities/order.enums';
 
 @Injectable()
 export class SellerService {
@@ -18,6 +21,10 @@ export class SellerService {
   private userRepository: Repository<User>,
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
+    @InjectRepository(Order)
+    private orderRepository: Repository<Order>,
+    @InjectRepository(FinancialRecord)
+    private financialRecordRepository: Repository<FinancialRecord>,
   ) {}
 
   // Legacy method for backward compatibility
@@ -385,6 +392,296 @@ async loginSeller(username: string, password: string): Promise<{ message: string
         name: product.name,
         description: product.description
       }))
+    };
+  }
+
+  // ======= SELLER DASHBOARD ENHANCED METHODS =======
+
+  // Get comprehensive seller dashboard data
+  async getSellerDashboard(sellerId: number) {
+    const seller = await this.userRepository.findOne({
+      where: { id: sellerId, role: Role.SELLER }
+    });
+
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    // Get product analytics
+    const productAnalytics = await this.getSellerProductAnalytics(sellerId);
+    
+    // Get order analytics
+    const orderAnalytics = await this.getSellerOrderAnalytics(sellerId);
+    
+    // Get financial analytics
+    const financialAnalytics = await this.getSellerFinancialAnalytics(sellerId);
+    
+    // Get recent orders
+    const recentOrders = await this.getSellerRecentOrders(sellerId, 10);
+
+    return {
+      seller: {
+        id: seller.id,
+        username: seller.username,
+        fullName: seller.fullName,
+        phone: seller.phone,
+        isActive: seller.isActive,
+        joinedAt: seller.createdAt
+      },
+      analytics: {
+        products: productAnalytics,
+        orders: orderAnalytics,
+        financial: financialAnalytics
+      },
+      recentOrders
+    };
+  }
+
+  // Get seller product analytics
+  private async getSellerProductAnalytics(sellerId: number) {
+    const products = await this.productRepository.find({
+      where: { userId: sellerId },
+      relations: ['images']
+    });
+
+    const totalProducts = products.length;
+    const activeProducts = products.filter(p => p.isActive).length;
+    const inactiveProducts = totalProducts - activeProducts;
+    const totalStock = products.reduce((sum, p) => sum + (p.stockQuantity || 0), 0);
+    const lowStockProducts = products.filter(p => (p.stockQuantity || 0) < 10).length;
+    const totalValue = products.reduce((sum, p) => sum + (p.price * (p.stockQuantity || 0)), 0);
+
+    return {
+      totalProducts,
+      activeProducts,
+      inactiveProducts,
+      lowStockProducts,
+      totalStock,
+      totalValue,
+      averagePrice: totalProducts > 0 ? products.reduce((sum, p) => sum + p.price, 0) / totalProducts : 0,
+      productsWithImages: products.filter(p => p.images && p.images.length > 0).length
+    };
+  }
+
+  // Get seller order analytics
+  private async getSellerOrderAnalytics(sellerId: number) {
+    // Get orders that contain products from this seller
+    const orders = await this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.orderItems', 'orderItem')
+      .leftJoinAndSelect('orderItem.product', 'product')
+      .where('product.userId = :sellerId', { sellerId })
+      .getMany();
+
+    const totalOrders = orders.length;
+    const pendingOrders = orders.filter(o => o.status === OrderStatus.PENDING).length;
+    const confirmedOrders = orders.filter(o => o.status === OrderStatus.CONFIRMED).length;
+    const shippedOrders = orders.filter(o => o.status === OrderStatus.SHIPPED).length;
+    const deliveredOrders = orders.filter(o => o.status === OrderStatus.DELIVERED).length;
+    const cancelledOrders = orders.filter(o => o.status === OrderStatus.CANCELLED).length;
+
+    // Calculate total revenue from delivered orders
+    const totalRevenue = orders
+      .filter(o => o.status === OrderStatus.DELIVERED)
+      .reduce((sum, order) => {
+        const sellerItems = order.orderItems.filter(item => item.sellerId === sellerId);
+        return sum + sellerItems.reduce((itemSum, item) => itemSum + item.subtotal, 0);
+      }, 0);
+
+    return {
+      totalOrders,
+      pendingOrders,
+      confirmedOrders,
+      shippedOrders,
+      deliveredOrders,
+      cancelledOrders,
+      totalRevenue,
+      averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0
+    };
+  }
+
+  // Get seller financial analytics
+  private async getSellerFinancialAnalytics(sellerId: number) {
+    const financialRecords = await this.financialRecordRepository.find({
+      where: { sellerId }
+    });
+
+    const totalEarnings = financialRecords.reduce((sum, record) => sum + record.amount, 0);
+    const pendingPayouts = financialRecords.filter(r => r.status === FinancialStatus.PENDING).reduce((sum, r) => sum + r.amount, 0);
+    const completedPayouts = financialRecords.filter(r => r.status === FinancialStatus.PAID).reduce((sum, r) => sum + r.amount, 0);
+    const platformFees = financialRecords.reduce((sum, record) => sum + (record.platformFee || 0), 0);
+
+    const currentMonthStart = new Date();
+    currentMonthStart.setDate(1);
+    currentMonthStart.setHours(0, 0, 0, 0);
+
+    const monthlyEarnings = financialRecords
+      .filter(r => r.createdAt >= currentMonthStart)
+      .reduce((sum, r) => sum + r.amount, 0);
+
+    return {
+      totalEarnings,
+      pendingPayouts,
+      completedPayouts,
+      platformFees,
+      netEarnings: totalEarnings - platformFees,
+      monthlyEarnings,
+      totalTransactions: financialRecords.length
+    };
+  }
+
+  // Get seller recent orders
+  async getSellerRecentOrders(sellerId: number, limit: number = 10) {
+    return await this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.orderItems', 'orderItem')
+      .leftJoinAndSelect('orderItem.product', 'product')
+      .leftJoinAndSelect('order.buyer', 'customer')
+      .where('product.userId = :sellerId', { sellerId })
+      .orderBy('order.placedAt', 'DESC')
+      .take(limit)
+      .getMany();
+  }
+
+  // Get seller orders with status filter
+  async getSellerOrders(sellerId: number, status?: string, page: number = 1, limit: number = 20) {
+    const query = this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.orderItems', 'orderItem')
+      .leftJoinAndSelect('orderItem.product', 'product')
+      .leftJoinAndSelect('order.buyer', 'customer')
+      .where('product.userId = :sellerId', { sellerId });
+
+    if (status) {
+      query.andWhere('order.status = :status', { status: status.toUpperCase() });
+    }
+
+    const orders = await query
+      .orderBy('order.placedAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    const total = await query.getCount();
+
+    return {
+      orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
+  // Update seller verification status (admin only)
+  async updateSellerVerification(sellerId: number, isVerified: boolean, adminId: number) {
+    const seller = await this.userRepository.findOne({
+      where: { id: sellerId, role: Role.SELLER }
+    });
+
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    seller.isVerified = isVerified;
+    await this.userRepository.save(seller);
+
+    return {
+      message: `Seller verification status updated to ${isVerified ? 'verified' : 'unverified'}`,
+      seller: {
+        id: seller.id,
+        username: seller.username,
+        isVerified: seller.isVerified
+      }
+    };
+  }
+
+  // Get seller financial records
+  async getSellerFinancialRecords(sellerId: number, page: number = 1, limit: number = 20) {
+    const [records, total] = await this.financialRecordRepository.findAndCount({
+      where: { sellerId },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit
+    });
+
+    return {
+      records,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
+  // Generate seller performance report
+  async generateSellerReport(sellerId: number, startDate?: Date, endDate?: Date) {
+    const seller = await this.userRepository.findOne({
+      where: { id: sellerId, role: Role.SELLER }
+    });
+
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+    }
+
+    const dateFilter = startDate && endDate ? Between(startDate, endDate) : MoreThan(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)); // Last 30 days
+
+    // Get products data
+    const products = await this.productRepository.find({
+      where: { userId: sellerId },
+      relations: ['images']
+    });
+
+    // Get orders data
+    const orders = await this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.orderItems', 'orderItem')
+      .leftJoinAndSelect('orderItem.product', 'product')
+      .where('product.userId = :sellerId', { sellerId })
+      .andWhere('order.placedAt >= :startDate', { startDate: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) })
+      .getMany();
+
+    // Get financial records
+    const financialRecords = await this.financialRecordRepository.find({
+      where: { 
+        sellerId,
+        createdAt: dateFilter
+      }
+    });
+
+    const totalRevenue = financialRecords.reduce((sum, record) => sum + record.amount, 0);
+    const totalOrders = orders.length;
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    return {
+      reportPeriod: {
+        startDate: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        endDate: endDate || new Date()
+      },
+      seller: {
+        id: seller.id,
+        username: seller.username,
+        fullName: seller.fullName
+      },
+      summary: {
+        totalProducts: products.length,
+        activeProducts: products.filter(p => p.isActive).length,
+        totalOrders,
+        totalRevenue,
+        avgOrderValue,
+        totalTransactions: financialRecords.length
+      },
+      products: products.slice(0, 10), // Top 10 products
+      recentOrders: orders.slice(0, 5), // Last 5 orders
+      financialSummary: {
+        totalEarnings: totalRevenue,
+        platformFees: financialRecords.reduce((sum, r) => sum + (r.platformFee || 0), 0),
+        netEarnings: totalRevenue - financialRecords.reduce((sum, r) => sum + (r.platformFee || 0), 0)
+      }
     };
   }
 

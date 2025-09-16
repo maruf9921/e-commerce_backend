@@ -73,7 +73,7 @@ export class UsersService {
       email,
       password: hashedPassword,
       phone,
-      role,
+      role: role as Role,
       isActive: true,
     });
 
@@ -87,6 +87,21 @@ export class UsersService {
   async registerSeller(createUserDto: CreateUserDto): Promise<{ message: string; user: Partial<User> }> {
     const sellerData = { ...createUserDto, role: Role.SELLER };
     const user = await this.createUser(sellerData);
+    
+    // Console log for seller account creation success
+    console.log('\n' + '='.repeat(60));
+    console.log('🎉 SELLER ACCOUNT CREATED SUCCESSFULLY! 🎉');
+    console.log('='.repeat(60));
+    console.log('📋 Account Details:');
+    console.log(`   👤 Username: ${user.username}`);
+    console.log(`   📧 Email: ${user.email}`);
+    console.log(`   🏪 Seller ID: ${user.sellerId}`);
+    console.log(`   📅 Created: ${new Date().toLocaleString()}`);
+    console.log('='.repeat(60));
+    console.log('⏳ STATUS: PENDING ADMIN VERIFICATION');
+    console.log('📝 The seller account has been created but requires admin');
+    console.log('   approval before the seller can start listing products.');
+    console.log('='.repeat(60) + '\n');
     
     return {
       message: 'Seller registration successful. Your account is pending admin verification.',

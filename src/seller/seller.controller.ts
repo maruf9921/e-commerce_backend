@@ -195,4 +195,99 @@ export class SellerController {
     return await this.sellerService.getSellerProductsNameAndDescription(sellerId);
   }
 
+  // ======= SELLER DASHBOARD ENHANCED ENDPOINTS =======
+
+  // Get comprehensive seller dashboard data
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SELLER, Role.ADMIN)
+  @Get('dashboard/overview')
+  async getSellerDashboard(@CurrentUser() user: any) {
+    return await this.sellerService.getSellerDashboard(user.id);
+  }
+
+  // Get seller orders with filtering
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SELLER, Role.ADMIN)
+  @Get('dashboard/orders')
+  async getSellerOrders(
+    @CurrentUser() user: any,
+    @Query('status') status?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number
+  ) {
+    return await this.sellerService.getSellerOrders(
+      user.id, 
+      status, 
+      page || 1, 
+      limit || 20
+    );
+  }
+
+  // Get seller recent orders
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SELLER, Role.ADMIN)
+  @Get('dashboard/recent-orders')
+  async getSellerRecentOrders(
+    @CurrentUser() user: any,
+    @Query('limit') limit?: number
+  ) {
+    return await this.sellerService.getSellerRecentOrders(user.id, limit || 10);
+  }
+
+  // Get seller financial records
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SELLER, Role.ADMIN)
+  @Get('dashboard/financial-records')
+  async getSellerFinancialRecords(
+    @CurrentUser() user: any,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number
+  ) {
+    return await this.sellerService.getSellerFinancialRecords(
+      user.id,
+      page || 1,
+      limit || 20
+    );
+  }
+
+  // Generate seller performance report
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SELLER, Role.ADMIN)
+  @Get('dashboard/report')
+  async generateSellerReport(
+    @CurrentUser() user: any,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string
+  ) {
+    const start = startDate ? new Date(startDate) : undefined;
+    const end = endDate ? new Date(endDate) : undefined;
+    
+    return await this.sellerService.generateSellerReport(user.id, start, end);
+  }
+
+  // Admin endpoint: Update seller verification status
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Put(':id/verification')
+  @UsePipes(ValidationPipe)
+  async updateSellerVerification(
+    @Param('id') sellerId: string,
+    @Body() verificationData: { isVerified: boolean },
+    @CurrentUser() admin: any
+  ) {
+    return await this.sellerService.updateSellerVerification(
+      parseInt(sellerId),
+      verificationData.isVerified,
+      admin.id
+    );
+  }
+
+  // Get seller dashboard data by ID (Admin access)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get(':id/dashboard')
+  async getSellerDashboardById(@Param('id') sellerId: string) {
+    return await this.sellerService.getSellerDashboard(parseInt(sellerId));
+  }
+
 }
