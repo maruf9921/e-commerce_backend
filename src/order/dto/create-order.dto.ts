@@ -37,6 +37,13 @@ export class ShippingAddressDto {
   country: string;
 }
 
+export class CreateOrderFromCartDto {
+  @IsNotEmpty()
+  shippingAddress: ShippingAddressDto;
+
+  notes?: string;
+}
+
 export class CreateOrderDto {
   @IsNotEmpty()
   items: CreateOrderItemDto[];

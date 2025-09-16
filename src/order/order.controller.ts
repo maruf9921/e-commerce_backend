@@ -14,7 +14,7 @@ import {
   ForbiddenException
 } from '@nestjs/common';
 import { OrderService } from './order.service';
-import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateOrderDto, CreateOrderFromCartDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles/roles.guard';
@@ -41,13 +41,14 @@ export class OrderController {
   }
 
   @Post('from-cart')
-  async createOrderFromCart(@Request() req: any) {
+  @UsePipes(ValidationPipe)
+  async createOrderFromCart(@Body() createOrderFromCartDto: CreateOrderFromCartDto, @Request() req: any) {
     // Only authenticated users can create orders
     if (!req.user || !req.user.id) {
       throw new ForbiddenException('Authentication required to place order');
     }
 
-    return this.orderService.createOrderFromCart(req.user.id);
+    return this.orderService.createOrderFromCart(req.user.id, createOrderFromCartDto);
   }
 
   @Get()
@@ -69,7 +70,7 @@ export class OrderController {
   }
 
   @Get('seller/orders')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SELLER)
   async getSellerOrders(
     @Request() req: any,

@@ -8,7 +8,7 @@ import { FinancialRecord } from './entities/financial-record.entity';
 import { Product } from '../product/entities/product.entity';
 import { User } from '../users/entities/unified-user.entity';
 import { Cart } from '../cart/entities/cart.entity';
-import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateOrderDto, CreateOrderFromCartDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order.dto';
 import { OrderStatus, PaymentStatus, FinancialStatus } from './entities/order.enums';
 import { Role } from '../users/entities/role.enum';
@@ -155,7 +155,7 @@ export class OrderService {
     }
   }
 
-  async createOrderFromCart(userId: number): Promise<Order> {
+  async createOrderFromCart(userId: number, createOrderFromCartDto: CreateOrderFromCartDto): Promise<Order> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -196,7 +196,8 @@ export class OrderService {
           productId: product.id,
           quantity: cartItem.quantity,
           price: product.price,
-          sellerId: product.userId
+          sellerId: product.userId,
+          product: product // Store the complete product for later use
         });
 
         // Update product stock
@@ -208,7 +209,9 @@ export class OrderService {
       const order = queryRunner.manager.create(Order, {
         userId,
         totalAmount,
-        status: OrderStatus.PENDING
+        status: OrderStatus.PENDING,
+        shippingAddress: createOrderFromCartDto.shippingAddress,
+        notes: createOrderFromCartDto.notes
       });
 
       const savedOrder = await queryRunner.manager.save(Order, order);
@@ -218,8 +221,13 @@ export class OrderService {
         const orderItem = queryRunner.manager.create(OrderItem, {
           orderId: savedOrder.id,
           productId: itemData.productId,
+          sellerId: itemData.sellerId,
+          productNameSnapshot: itemData.product.name,
+          productDescriptionSnapshot: itemData.product.description,
+          unitPriceSnapshot: itemData.price,
+          categorySnapshot: itemData.product.category,
           quantity: itemData.quantity,
-          price: itemData.price
+          subtotal: itemData.price * itemData.quantity
         });
 
         const savedOrderItem = await queryRunner.manager.save(OrderItem, orderItem);
@@ -237,21 +245,25 @@ export class OrderService {
         await queryRunner.manager.save(FinancialRecord, financialRecord);
       }
 
-      // Create payment record
+      // Create payment record (COD for now since no payment system)
       const payment = queryRunner.manager.create(Payment, {
         orderId: savedOrder.id,
+        provider: 'cod', // Cash on Delivery as default
         amount: totalAmount,
         status: PaymentStatus.PENDING,
-        type: 'CART_ORDER'
+        paymentMethod: {
+          type: 'cod',
+          details: { note: 'Cart order - Cash on Delivery' }
+        }
       });
 
       await queryRunner.manager.save(Payment, payment);
 
-      // Clear cart
-      await queryRunner.manager.update(Cart, 
-        { userId, isActive: true }, 
-        { isActive: false }
-      );
+      // Clear cart by deleting active items (avoid unique constraint violation)
+      await queryRunner.manager.delete(Cart, { 
+        userId, 
+        isActive: true 
+      });
 
       await queryRunner.commitTransaction();
 

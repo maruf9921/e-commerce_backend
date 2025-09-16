@@ -111,15 +111,16 @@ export class CartService {
       throw new NotFoundException('Cart item not found');
     }
 
-    cartItem.isActive = false;
-    await this.cartRepository.save(cartItem);
+    // Delete item instead of setting isActive to false to avoid unique constraint violation
+    await this.cartRepository.delete(cartItem.id);
   }
 
   async clearCart(userId: number): Promise<void> {
-    await this.cartRepository.update(
-      { userId, isActive: true },
-      { isActive: false }
-    );
+    // Delete active cart items instead of updating to avoid unique constraint violation
+    await this.cartRepository.delete({
+      userId, 
+      isActive: true
+    });
   }
 
   async getCartTotal(userId: number): Promise<number> {
