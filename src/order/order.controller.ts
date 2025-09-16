@@ -74,10 +74,12 @@ export class OrderController {
   @Roles(Role.SELLER)
   async getSellerOrders(
     @Request() req: any,
-    @Query('page', ParseIntPipe) page = 1,
-    @Query('limit', ParseIntPipe) limit = 10
+    @Query('page') page?: string,
+    @Query('limit') limit?: string
   ) {
-    return this.orderService.getSellerOrders(req.user.id, page, limit);
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    return this.orderService.getSellerOrders(req.user.id, pageNum, limitNum);
   }
 
   @Get(':id')
