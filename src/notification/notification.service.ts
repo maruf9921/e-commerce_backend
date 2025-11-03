@@ -306,4 +306,11 @@ export class NotificationService {
       return { status: 'unhealthy', error: error.message, timestamp: new Date().toISOString() };
     }
   }
+
+  async sendOrderNotificationToSeller(sellerId: number, order: any) {
+    await this.pusher.trigger(`seller-${sellerId}`, 'order-placed', {
+      message: `New order placed by ${order.userName}`,
+      orderId: order.id,
+    });
+  }
 }

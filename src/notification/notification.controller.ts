@@ -26,12 +26,12 @@ export class NotificationController {
 
   // Send notification to specific user (Admin only)
   @Post('send-to-user/:userId')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN,Role.SELLER)
   @UsePipes(ValidationPipe)
   async sendToUser(
     @Param('userId', ParseIntPipe) userId: number,
     @Body() notification: NotificationData
-  ) {
+  ): Promise<{ success: boolean; channelName: string; eventName: string; error?: undefined; } | { success: boolean; error: any; channelName?: undefined; eventName?: undefined; }> {
     return this.notificationService.sendToUser(userId, notification);
   }
 
@@ -95,19 +95,19 @@ export class NotificationController {
 
   // Trigger order placed notification (Internal use / Admin)
   @Post('order/placed')
-  @Roles(Role.ADMIN)
+  @Roles( Role.USER)
   @UsePipes(ValidationPipe)
-  async notifyOrderPlaced(@Body() order: any) {
+  async notifyOrderPlaced(@Body() order: any): Promise<void> {
     return this.notificationService.notifyOrderPlaced(order);
   }
 
   // Trigger order status update notification (Internal use / Admin)
   @Post('order/status-update')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SELLER, Role.USER)
   @UsePipes(ValidationPipe)
   async notifyOrderStatusUpdate(
     @Body() data: { order: any; oldStatus: string; newStatus: string }
-  ) {
+  ): Promise<void> {
     return this.notificationService.notifyOrderStatusUpdate(
       data.order,
       data.oldStatus,

@@ -229,12 +229,14 @@ export class ProductController {
         @Param('id', ParseIntPipe) productId: number,
         @CurrentUser() user: any
     ) {
-        // Verify the product belongs to the current user
-        const product = await this.productService.getProductById(productId);
-        if (product.userId !== user.id && user.role !== Role.ADMIN) {
-            throw new Error('You can only delete your own products');
+        // Use the new seller-specific delete method with proper foreign key handling
+        if (user.role === Role.ADMIN) {
+            // Admins can delete any product
+            return this.productService.deleteProduct(productId);
+        } else {
+            // Sellers can only delete their own products
+            return this.productService.deleteSellerProduct(productId, user.id);
         }
-        return this.productService.deleteProduct(productId);
     }
 
     // Update product

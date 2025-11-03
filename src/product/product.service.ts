@@ -2,7 +2,7 @@ import { Role } from '../users/entities/role.enum';
 import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { Product } from './entities/product.entity';
 import { ProductImage } from './entities/image.entity';
-import { Repository, ILike, In } from 'typeorm';
+import { Repository, ILike, In, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ProductDto, UpdateProductDto } from './dto/product.dto';
 // Removed Seller import, use User for seller logic
@@ -22,6 +22,7 @@ export class ProductService {
         // private categoryRepository: Repository<Category>,
         @InjectRepository(User)
         private userRepository: Repository<User>,
+        private dataSource: DataSource,
     ) {}
 
     async getAllProducts(): Promise<Product[]> {
@@ -235,15 +236,68 @@ export class ProductService {
         });
     }
 
-    async deleteProduct(id: number): Promise<{ message: string; deletedProduct: Product }> {
+    async deleteProduct(id: number): Promise<{ message: string; deletedProduct?: Product }> {
         const product = await this.getProductById(id);
         
-        await this.productRepository.remove(product);
+        try {
+            // First, check if product is referenced in any orders
+            const orderItemsCount = await this.dataSource.query(
+                'SELECT COUNT(*) as count FROM order_items WHERE "productId" = $1',
+                [id]
+            );
+            
+            if (parseInt(orderItemsCount[0].count) > 0) {
+                // If product is referenced in orders, soft delete by marking as inactive
+                product.isActive = false;
+                product.name = `[DELETED] ${product.name}`;
+                await this.productRepository.save(product);
+                
+                return {
+                    message: `Product '${product.name}' has been deactivated (cannot delete due to existing orders)`,
+                    deletedProduct: product
+                };
+            } else {
+                // If no order references, safe to hard delete
+                await this.productRepository.remove(product);
+                
+                return {
+                    message: `Product '${product.name}' has been successfully deleted`,
+                    deletedProduct: product
+                };
+            }
+        } catch (error) {
+            if (error.code === '23503') { // Foreign key constraint violation
+                // Fallback: soft delete if foreign key constraint detected
+                product.isActive = false;
+                product.name = `[DELETED] ${product.name}`;
+                await this.productRepository.save(product);
+                
+                return {
+                    message: `Product '${product.name}' has been deactivated (referenced in existing orders)`,
+                    deletedProduct: product
+                };
+            }
+            throw error;
+        }
+    }
+
+    // Delete product with seller authorization
+    async deleteSellerProduct(productId: number, sellerId: number): Promise<{ message: string; deletedProduct?: Product }> {
+        const product = await this.productRepository.findOne({
+            where: { id: productId },
+            relations: ['seller', 'images']
+        });
         
-        return {
-            message: `Product '${product.name}' has been successfully deleted`,
-            deletedProduct: product
-        };
+        if (!product) {
+            throw new NotFoundException(`Product with ID '${productId}' not found`);
+        }
+        
+        // Check if the seller owns this product
+        if (product.userId !== sellerId) {
+            throw new UnauthorizedException('You can only delete your own products');
+        }
+        
+        return this.deleteProduct(productId);
     }
 
     // Many-to-One Relationship Methods

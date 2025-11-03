@@ -118,7 +118,17 @@ export class UpdateProductDto {
     @IsBoolean()
     isActive?: boolean;
 
-    
+    @IsOptional()
     @IsString()
     imageUrl?: string;
+
+    // Additional fields for frontend compatibility
+    @IsOptional()
+    @Min(0, { message: 'Stock must be a non-negative number' })
+    stock?: number;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(100, { message: 'Category must not exceed 100 characters' })
+    category?: string;
 }

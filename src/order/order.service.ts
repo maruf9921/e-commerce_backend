@@ -482,14 +482,15 @@ export class OrderService {
     try {
       const skip = (page - 1) * limit;
       
-      // Simplified query to debug the issue
+      // Fixed query with correct entity relationships
       const [orders, totalCount] = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.orderItems', 'orderItem')
         .leftJoinAndSelect('orderItem.product', 'product')
-        .leftJoinAndSelect('order.user', 'user')
+        .leftJoinAndSelect('order.buyer', 'buyer')
+        .leftJoinAndSelect('order.payment', 'payment')
         .where('product.userId = :sellerId', { sellerId })
-        .orderBy('order.createdAt', 'DESC')
+        .orderBy('order.placedAt', 'DESC')
         .skip(skip)
         .take(limit)
         .getManyAndCount();
@@ -697,4 +698,33 @@ export class OrderService {
       console.error('Failed to send order status update email:', error);
     }
   }
+
+  
+
+  // Order save হওয়ার পর Seller কে notify করা হবে
+  
+
+  async notifySellersAboutNewOrder(order: Order): Promise<void> {
+    try {
+      // Group order items by seller
+      const sellerGroups = new Map<number, any[]>();
+      
+      for (const item of order.orderItems) {
+        if (!item.sellerId) continue;
+        
+        if (!sellerGroups.has(item.sellerId)) {
+          sellerGroups.set(item.sellerId, []);
+        }
+        sellerGroups.get(item.sellerId)!.push(item);
+      }
+
+      // Notify each seller
+      for (const [sellerId, items] of sellerGroups) {
+        await this.notificationService.sendOrderNotificationToSeller(sellerId, order);
+      }
+    } catch (error) {
+      console.error('Failed to notify sellers about new order:', error);
+    }
+}
+
 }
